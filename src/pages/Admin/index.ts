@@ -1,0 +1,5 @@
+export { default as MasterDataPage } from './MasterData/MasterDataPage'
+export { default as AdvisorClassPage } from './AdvisorClass/AdvisorClassPage'
+export { default as AdminUsersPage } from './Users/AdminUsersPage'
+export { default as FeedbackListPage } from './Feedback/FeedbackListPage'
+export { default as Home } from './Dashboard/Home'
