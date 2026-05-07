@@ -7,7 +7,7 @@ interface Option {
 }
 
 interface MultiSelectProps {
-  label: string
+  label?: string
   options: Option[]
   defaultSelected?: string[]
   value?: string[]
@@ -17,7 +17,7 @@ interface MultiSelectProps {
 }
 
 const MultiSelect: React.FC<MultiSelectProps> = ({
-  label,
+  label = '',
   options,
   defaultSelected = [],
   value,
@@ -100,12 +100,14 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
 
   return (
     <div className="w-full" ref={dropdownRef}>
-      <label
-        className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400"
-        id={`${label}-label`}
-      >
-        {label}
-      </label>
+      {label && (
+        <label
+          className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400"
+          id={`${label}-label`}
+        >
+          {label}
+        </label>
+      )}
 
       <div className="relative z-20 inline-block w-full">
         <div className="relative flex flex-col items-center">
@@ -121,11 +123,10 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
             tabIndex={disabled ? -1 : 0}
           >
             <div
-              className={`mb-2 flex min-h-11  rounded-lg border border-gray-300 py-1.5 pl-3 pr-3 shadow-theme-xs outline-hidden transition focus:border-brand-300 focus:shadow-focus-ring dark:border-gray-700 dark:bg-gray-900 dark:focus:border-brand-300 ${
-                disabled
-                  ? 'opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800'
-                  : 'cursor-pointer'
-              }`}
+              className={`flex min-h-11 rounded-lg border border-gray-300 py-1.5 pl-3 pr-3 shadow-theme-xs outline-hidden transition focus:border-brand-300 focus:shadow-focus-ring dark:border-gray-700 dark:bg-gray-900 dark:focus:border-brand-300 ${disabled
+                ? 'opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800'
+                : 'cursor-pointer'
+                }`}
             >
               <div className="flex flex-wrap flex-auto gap-2">
                 {selectedOptions.length > 0 ? (
@@ -203,7 +204,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
 
           {isOpen && (
             <div
-              className="absolute left-0 z-40 w-full overflow-y-auto bg-white rounded-lg shadow-sm top-full max-h-select dark:bg-gray-900"
+              className="absolute left-0 z-40 w-full overflow-y-auto bg-white rounded-lg shadow-sm top-full max-h-60 dark:bg-gray-900"
               onClick={e => e.stopPropagation()}
               role="listbox"
               aria-label={label}
@@ -215,9 +216,8 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
                 return (
                   <div
                     key={option.value}
-                    className={`hover:bg-primary/5 w-full cursor-pointer rounded-t border-b border-gray-200 dark:border-gray-800 ${
-                      isFocused ? 'bg-primary/5' : ''
-                    } ${isSelected ? 'bg-primary/10' : ''}`}
+                    className={`hover:bg-primary/5 w-full cursor-pointer rounded-t border-b border-gray-200 dark:border-gray-800 ${isFocused ? 'bg-primary/5' : ''
+                      } ${isSelected ? 'bg-primary/10' : ''}`}
                     onClick={() => handleSelect(option.value)}
                     role="option"
                     aria-selected={isSelected}

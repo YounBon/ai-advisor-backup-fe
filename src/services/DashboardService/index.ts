@@ -14,6 +14,11 @@ class DashboardService {
     return response.data
   }
 
+  /**
+   * Lấy dashboard cố vấn.
+   * @param body.class_id - ID lớp muốn xem (optional).
+   *   Nếu không truyền, backend tự chọn lớp ACTIVE đầu tiên.
+   */
   getAdvisorDashboard = async (body: object = {}): Promise<ApiResponse> => {
     const response = await this.api.post('/dashboard/advisor', body)
     return response.data

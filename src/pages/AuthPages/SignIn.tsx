@@ -11,18 +11,22 @@ import useAuthStore from '../../stores/authStore'
 
 function resolvePostLoginPath(role: string | undefined, from: string) {
   const home =
-    role === 'STUDENT' ? '/student' : role === 'ADVISOR' ? '/advisor' : '/'
-  if (!from || from === '/signin') return home
+    role === 'STUDENT' ? '/student'
+      : role === 'ADVISOR' ? '/advisor'
+        : (role === 'ADMIN' || role === 'FACULTY') ? '/dashboard'
+          : '/'
+  // Nếu from là trang gốc, trang signin, hoặc không có → về home của role
+  if (!from || from === '/' || from === '/signin') return home
   if (role === 'STUDENT' && !from.startsWith('/student')) return '/student'
   if (role === 'ADVISOR' && !from.startsWith('/advisor')) return '/advisor'
-  if (role !== 'STUDENT' && role !== 'ADVISOR' && from.startsWith('/student')) return '/'
-  if ((role === 'FACULTY' || role === 'ADMIN') && from.startsWith('/advisor')) return '/'
+  if ((role === 'ADMIN' || role === 'FACULTY') && (from.startsWith('/student') || from.startsWith('/advisor'))) return '/dashboard'
   return from
 }
 
 function resolvePostLoginTitle(role: string | undefined) {
   if (role === 'STUDENT') return 'Dashboard sinh viên | Advisor'
   if (role === 'ADVISOR') return 'Tổng quan cố vấn | Advisor'
+  if (role === 'ADMIN' || role === 'FACULTY') return 'Quản trị | AI-Advisor'
   return 'AI-Advisor'
 }
 

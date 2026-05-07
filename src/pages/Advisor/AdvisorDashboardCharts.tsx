@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react'
 import { useMemo } from 'react'
 import Chart from 'react-apexcharts'
 import type { ApexOptions } from 'apexcharts'
-import { AlertIcon, BoltIcon, GridIcon, MailIcon, PieChartIcon } from '@/icons'
+import { GridIcon } from '@/icons'
+
+// ─── Kiểu dữ liệu export ─────────────────────────────────────────────────────
 
 export type AlertOpenRow = {
   _id?: string
@@ -19,422 +20,264 @@ export type AlertCards = {
   anomaly_open?: number
 }
 
+export type AlertHistoryItem = {
+  term_id?: string
+  term_code?: string
+  term_name?: string
+  start_date?: string | null
+  risk_count?: number
+  sentiment_count?: number
+  anomaly_count?: number
+  high_severity_count?: number
+}
+
 type StudentRowLite = {
   risk_label?: number | string | null
 }
 
+// ─── Props ────────────────────────────────────────────────────────────────────
+
 type Props = {
   studentTable: StudentRowLite[]
   alertCards: AlertCards | null
-  riskAlerts: AlertOpenRow[]
-  sentimentAlerts: AlertOpenRow[]
-  anomalyAlerts: AlertOpenRow[]
+  alertHistory: AlertHistoryItem[]
   paginationTotal: number
   unreadNotifications: number
   noAdvisorClass: boolean
+  activeTerm: string | null
+  classLabel: string | null
 }
 
-const DONUT_COLORS = ['#3b82f6', '#8b5cf6', '#f97316']
+const C_RED = '#E02020'
+const C_YELLOW = '#eab308'
+const C_ORANGE = '#f97316'
+const C_HIGH = '#dc2626'
 
-function countBySeverity(alerts: AlertOpenRow[]): Record<string, number> {
-  const m: Record<string, number> = {}
-  for (const a of alerts) {
-    const s = a.severity ?? 'UNKNOWN'
-    m[s] = (m[s] ?? 0) + 1
+// ─── Helper tạo options biểu đồ cột lịch sử ─────────────────────────────────
+
+function makeBarOptions(termLabels: string[], color: string, legendLabel: string): ApexOptions {
+  return {
+    chart: {
+      type: 'bar',
+      fontFamily: "'Be Vietnam Pro', sans-serif",
+      toolbar: { show: false },
+      background: 'transparent',
+      animations: { enabled: true, speed: 350 },
+    },
+    colors: [color],
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: termLabels.length <= 2 ? '32%' : '55%',
+        borderRadius: 4,
+        borderRadiusApplication: 'end',
+        dataLabels: { position: 'top' },
+      },
+    },
+    dataLabels: {
+      enabled: true,
+      offsetY: -16,
+      style: { fontSize: '11px', fontWeight: 600, colors: ['#374151'] },
+      formatter: (val: number) => (val > 0 ? String(val) : ''),
+    },
+    xaxis: {
+      categories: termLabels.length ? termLabels : ['—'],
+      labels: {
+        style: { fontSize: '11px', colors: '#6b7280' },
+        rotate: -15,
+        trim: true,
+        maxHeight: 56,
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      title: {
+        text: 'Số sinh viên',
+        style: { fontSize: '11px', color: '#9ca3af', fontWeight: 400 },
+      },
+      labels: {
+        style: { fontSize: '11px', colors: '#9ca3af' },
+        formatter: (v: number) => String(Math.round(v)),
+      },
+      min: 0,
+    },
+    grid: {
+      borderColor: '#F0F0F0',
+      strokeDashArray: 4,
+      yaxis: { lines: { show: true } },
+      xaxis: { lines: { show: false } },
+    },
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'left',
+      fontSize: '12px',
+      fontWeight: 500,
+      labels: { colors: '#374151' },
+      markers: { size: 8 },
+      customLegendItems: [legendLabel],
+    },
+    tooltip: {
+      y: { formatter: (v: number) => `${v} sinh viên` },
+    },
+    stroke: { show: false },
   }
-  return m
 }
 
-function colorForSeverity(severity: string): string {
-  const key = severity.toUpperCase()
-  if (key === 'HIGH' || key === 'CRITICAL') return '#dc2626'
-  if (key === 'MEDIUM' || key === 'MODERATE') return '#eab308'
-  if (key === 'LOW') return '#22c55e'
-  return '#6366f1'
-}
-
-function countRiskLabels(rows: StudentRowLite[]): Map<string, number> {
-  const m = new Map<string, number>()
-  for (const r of rows) {
-    let key: string
-    if (r.risk_label === null || r.risk_label === undefined) {
-      key = 'Chưa có'
-    } else {
-      const val = String(r.risk_label)
-      if (val === '-1') key = 'High'
-      else if (val === '0') key = 'Medium'
-      else if (val === '1') key = 'Low'
-      else key = val
-    }
-    m.set(key, (m.get(key) ?? 0) + 1)
-  }
-  return m
-}
-
-function colorForLabel(label: string): string {
-  if (label === 'High') return '#dc2626'
-  if (label === 'Medium') return '#eab308'
-  if (label === 'Low') return '#22c55e'
-  return '#9ca3af'
-}
+// ─── Component chính ──────────────────────────────────────────────────────────
 
 export default function AdvisorDashboardCharts({
-  studentTable,
-  alertCards,
-  riskAlerts,
-  sentimentAlerts,
-  anomalyAlerts,
+  alertHistory,
   paginationTotal,
-  unreadNotifications,
   noAdvisorClass,
+  activeTerm,
+  classLabel,
 }: Props) {
-  const riskOpen = alertCards?.risk_open ?? 0
-  const sentimentOpen = alertCards?.sentiment_open ?? 0
-  const anomalyOpen = alertCards?.anomaly_open ?? 0
-  const totalOpenAlerts = riskOpen + sentimentOpen + anomalyOpen
 
-  const severityMerged = useMemo(
-    () => [...riskAlerts, ...sentimentAlerts, ...anomalyAlerts],
-    [riskAlerts, sentimentAlerts, anomalyAlerts]
-  )
-  const severityCounts = useMemo(() => countBySeverity(severityMerged), [severityMerged])
-  const severityCategories = useMemo(
-    () => Object.keys(severityCounts).sort(),
-    [severityCounts]
-  )
-  const severityColors = useMemo(
-    () => severityCategories.map(colorForSeverity),
-    [severityCategories]
-  )
-  const severitySeries = useMemo(
-    () => severityCategories.map(c => severityCounts[c] ?? 0),
-    [severityCategories, severityCounts]
+  const termLabels = useMemo(
+    () => alertHistory.map(h => h.term_name ?? h.term_code ?? '—'),
+    [alertHistory],
   )
 
-  const labelMap = useMemo(() => countRiskLabels(studentTable), [studentTable])
-  const labelCategories = useMemo(() => {
-    const keys = Array.from(labelMap.keys())
-    const order = ['Chưa có', 'High', 'Medium', 'Low']
-    const rest = keys.filter(k => !order.includes(k)).sort()
-    return [...order.filter(k => keys.includes(k)), ...rest]
-  }, [labelMap])
-  const labelColors = useMemo(
-    () => labelCategories.map(colorForLabel),
-    [labelCategories]
-  )
-  const labelSeries = useMemo(
-    () => [{ name: 'Sinh viên', data: labelCategories.map(c => labelMap.get(c) ?? 0) }],
-    [labelCategories, labelMap]
-  )
+  // Biểu đồ 1 — Cảnh báo học tập
+  const riskSeries = useMemo(() => [{ name: 'Cảnh báo học tập', data: alertHistory.map(h => h.risk_count ?? 0) }], [alertHistory])
+  const riskOptions = useMemo(() => makeBarOptions(termLabels, C_RED, 'Cảnh báo học tập'), [termLabels])
 
-  const donutOptions = useMemo<ApexOptions>(
-    () => ({
-      chart: {
-        type: 'donut',
-        fontFamily: 'Outfit, sans-serif',
-        toolbar: { show: false },
-        background: 'transparent',
-      },
-      labels: ['Cảnh báo RISK', 'Cảnh báo SENTIMENT', 'Cảnh báo ANOMALY'],
-      colors: DONUT_COLORS,
-      legend: {
-        position: 'bottom',
-        fontSize: '12px',
-        labels: { colors: '#64748b' },
-      },
-      dataLabels: { 
-        enabled: true,
-        style: { 
-          fontSize: '14px',
-          fontWeight: 700,
-          colors: ['#ffffff', '#ffffff', '#ffffff'],
-        },
-      },
-      plotOptions: {
-        pie: {
-          donut: {
-            size: '65%',
-            labels: {
-              show: true,
-              total: {
-                show: true,
-                label: 'Tổng cảnh báo',
-                formatter: () => String(totalOpenAlerts),
-              },
-            },
-          },
-        },
-      },
-      stroke: { show: false },
-    }),
-    [totalOpenAlerts]
-  )
+  // Biểu đồ 2 — Cảnh báo cảm xúc
+  const sentSeries = useMemo(() => [{ name: 'Cảnh báo cảm xúc', data: alertHistory.map(h => h.sentiment_count ?? 0) }], [alertHistory])
+  const sentOptions = useMemo(() => makeBarOptions(termLabels, C_YELLOW, 'Cảnh báo cảm xúc'), [termLabels])
 
-  const donutSeries = useMemo(() => [riskOpen, sentimentOpen, anomalyOpen], [riskOpen, sentimentOpen, anomalyOpen])
+  // Biểu đồ 3 — Cảnh báo bất thường
+  const anomSeries = useMemo(() => [{ name: 'Cảnh báo bất thường', data: alertHistory.map(h => h.anomaly_count ?? 0) }], [alertHistory])
+  const anomOptions = useMemo(() => makeBarOptions(termLabels, C_ORANGE, 'Cảnh báo bất thường'), [termLabels])
 
-  const barSeverityOptions = useMemo<ApexOptions>(
-    () => ({
-      chart: {
-        type: 'bar',
-        fontFamily: 'Outfit, sans-serif',
-        toolbar: { show: false },
-        background: 'transparent',
+  // Biểu đồ 4 — Sinh viên mức cảnh báo Cao
+  const highSeries = useMemo(() => [{ name: 'Sinh viên mức cảnh báo Cao', data: alertHistory.map(h => h.high_severity_count ?? 0) }], [alertHistory])
+  const highOptions = useMemo<ApexOptions>(() => ({
+    ...makeBarOptions(termLabels, C_HIGH, 'Sinh viên mức cảnh báo Cao'),
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shade: 'light', type: 'vertical',
+        shadeIntensity: 0.25,
+        gradientToColors: ['#fca5a5'],
+        stops: [0, 100],
       },
-      colors: severityColors.length ? severityColors : ['#6366f1'],
-      plotOptions: {
-        bar: {
-          horizontal: false,
-          columnWidth: '55%',
-          borderRadius: 6,
-          borderRadiusApplication: 'end',
-          distributed: true,
-        },
-      },
-      dataLabels: { enabled: false },
-      xaxis: {
-        categories: severityCategories.length ? severityCategories : ['—'],
-        labels: { style: { fontSize: '11px', colors: '#64748b' } },
-        axisBorder: { show: false },
-        axisTicks: { show: false },
-      },
-      grid: {
-        borderColor: '#e2e8f0',
-        strokeDashArray: 4,
-        yaxis: { lines: { show: true } },
-      },
-      tooltip: { y: { formatter: (val: number) => `${val} bản ghi` } },
-      legend: { show: false },
-    }),
-    [severityCategories]
-  )
+    },
+  }), [termLabels])
 
-  const barSeveritySeries = useMemo(
-    () => [
-      {
-        name: 'Cảnh báo',
-        data:
-          severitySeries.length > 0
-            ? severitySeries
-            : [0],
-      },
-    ],
-    [severitySeries]
-  )
-
-  const barLabelOptions = useMemo<ApexOptions>(
-    () => ({
-      chart: {
-        type: 'bar',
-        fontFamily: 'Outfit, sans-serif',
-        toolbar: { show: false },
-        background: 'transparent',
-      },
-      colors: labelColors.length ? labelColors : ['#6366f1'],
-      plotOptions: {
-        bar: {
-          horizontal: false,
-          columnWidth: '55%',
-          borderRadius: 6,
-          borderRadiusApplication: 'end',
-          distributed: true,
-        },
-      },
-      dataLabels: { enabled: false },
-      xaxis: {
-        categories: labelCategories.length ? labelCategories : ['—'],
-        labels: { style: { fontSize: '11px', colors: '#64748b' } },
-        axisBorder: { show: false },
-        axisTicks: { show: false },
-      },
-      grid: {
-        borderColor: '#e2e8f0',
-        strokeDashArray: 4,
-        yaxis: { lines: { show: true } },
-      },
-      tooltip: { y: { formatter: (val: number) => `${val} SV` } },
-      legend: { show: false },
-    }),
-    [labelCategories, labelColors]
-  )
-
+  // ── Không có lớp ──────────────────────────────────────────────────────────
   if (noAdvisorClass) {
     return (
-      <div className="mb-6 rounded-2xl border border-dashed border-gray-300/90 bg-white/80 p-8 text-center text-sm leading-relaxed text-gray-600 shadow-theme-sm dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400">
-        Chưa có lớp cố vấn ACTIVE — không có thống kê. Liên hệ ADMIN để gán lớp.
+      <div className="mb-6 rounded-2xl border border-dashed border-[#E0E0E0] bg-white p-10 text-center shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+        <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl bg-[#F9FAFB]">
+          <GridIcon className="size-7 text-[#9CA3AF]" />
+        </div>
+        <p className="text-sm font-semibold text-[#111111]">Bạn chưa được gán lớp cố vấn</p>
+        <p className="mt-1 text-xs text-[#6B7280]">
+          Vui lòng liên hệ quản trị viên để được gán lớp. Sau khi có lớp, toàn bộ thống kê sẽ hiển thị tại đây.
+        </p>
       </div>
     )
   }
 
-  const hasDonutData = riskOpen > 0 || sentimentOpen > 0
-  const hasSeverityData = severityMerged.length > 0
-  const hasLabelData = studentTable.length > 0
+  const hasHistory = alertHistory.length > 0
 
-  const chartCardClass =
-    'group relative overflow-hidden rounded-2xl border border-gray-200/90 bg-white p-5 shadow-[0_8px_30px_-10px_rgba(15,23,42,0.1)] ring-1 ring-gray-900/[0.03] transition-[box-shadow,transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-brand-200/60 hover:shadow-[0_16px_40px_-12px_rgba(70,95,255,0.18)] dark:border-gray-800 dark:bg-gray-900/50 dark:ring-white/[0.04] dark:hover:border-brand-500/25 dark:hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.65)] sm:p-6'
+  // Lớp card dùng chung — đồng nhất với student dashboard
+  const CARD = 'rounded-2xl border border-[#F0F0F0] bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)]'
 
   return (
-    <div className="mb-6 space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6 xl:gap-5">
-        <div className="sm:col-span-2 xl:col-span-2">
-          <Kpi
-            featured
-            title="Sinh viên lớp cố vấn"
-            value={paginationTotal}
-            accent="default"
-            icon={<GridIcon className="size-6 opacity-90" />}
-          />
-        </div>
-        <div className="xl:col-span-1">
-          <Kpi title="Cảnh báo RISK đang mở" value={riskOpen} accent="danger" icon={<AlertIcon className="size-5" />} />
-        </div>
-        <div className="xl:col-span-1">
-          <Kpi title="SENTIMENT đang mở" value={sentimentOpen} accent="warn" icon={<BoltIcon className="size-5" />} />
-        </div>
-        <div className="xl:col-span-1">
-          <Kpi title="ANOMALY đang mở" value={anomalyOpen} accent="warn" icon={<PieChartIcon className="size-5" />} />
-        </div>
-        <div className="xl:col-span-1">
-          <Kpi title="Thông báo chưa đọc" value={unreadNotifications} accent="default" icon={<MailIcon className="size-5" />} />
-        </div>
-      </div>
+    <div className="mb-6 space-y-5">
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
-        <div className={chartCardClass}>
-          <div className="mb-4 flex items-start gap-3">
-            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500/12 text-brand-600 dark:bg-brand-500/20 dark:text-brand-300">
-              <PieChartIcon className="size-5" />
-            </span>
-            <div>
-              <h3 className="text-base font-bold tracking-tight text-gray-900 dark:text-white/90">
-                Cảnh báo đang mở theo loại
-              </h3>
-              <p className="mt-1 h-0.5 w-10 rounded-full bg-gradient-to-r from-brand-500 to-violet-500" />
-            </div>
-          </div>
-          <p className="mb-5 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-            Từ trường <code className="rounded-md bg-gray-100 px-1.5 py-0.5 font-mono text-[11px] font-medium text-gray-800 ring-1 ring-gray-200/80 dark:bg-white/10 dark:text-gray-200 dark:ring-white/10">alert_cards</code> trên API — RISK vs SENTIMENT vs ANOMALY.
-          </p>
-          {hasDonutData ? (
-            <Chart options={donutOptions} series={donutSeries} type="donut" height={300} />
-          ) : (
-            <p className="py-16 text-center text-sm text-gray-500 dark:text-gray-400">
-              Không có cảnh báo OPEN loại RISK/SENTIMENT/ANOMALY cho sinh viên lớp bạn.
-            </p>
-          )}
-        </div>
-
-        <div className={chartCardClass}>
-          <div className="mb-4 flex items-start gap-3">
-            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/12 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
-              <BoltIcon className="size-5" />
-            </span>
-            <div>
-              <h3 className="text-base font-bold tracking-tight text-gray-900 dark:text-white/90">
-                Mức độ nghiêm trọng (cảnh báo mở)
-              </h3>
-              <p className="mt-1 h-0.5 w-10 rounded-full bg-gradient-to-r from-amber-500 to-orange-500" />
-            </div>
-          </div>
-          <p className="mb-5 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-            Gộp{' '}
-            <code className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[11px] text-gray-800 dark:bg-white/10 dark:text-gray-200">risk_alerts</code>,{' '}
-            <code className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[11px] text-gray-800 dark:bg-white/10 dark:text-gray-200">sentiment_alerts</code> và{' '}
-            <code className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[11px] text-gray-800 dark:bg-white/10 dark:text-gray-200">anomaly_alerts</code>{' '}
-            (tối đa 20 mỗi loại từ API).
-          </p>
-          {hasSeverityData ? (
-            <Chart options={barSeverityOptions} series={barSeveritySeries} type="bar" height={300} />
-          ) : (
-            <p className="py-16 text-center text-sm text-gray-500 dark:text-gray-400">
-              Chưa có bản ghi cảnh báo mở để thống kê mức độ.
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className={chartCardClass}>
-        <div className="mb-4 flex items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/12 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-            <GridIcon className="size-5" />
-          </span>
-          <div>
-            <h3 className="text-base font-bold tracking-tight text-gray-900 dark:text-white/90">
-              Phân bố nhãn rủi ro (sinh viên lớp)
-            </h3>
-            <p className="mt-1 h-0.5 w-10 rounded-full bg-gradient-to-r from-emerald-500 to-brand-500" />
-          </div>
-        </div>
-        <p className="mb-5 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-          Đếm theo trường <code className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[11px] text-gray-800 dark:bg-white/10 dark:text-gray-200">risk_label</code> trên danh sách sinh viên hiện tại.
-        </p>
-        {hasLabelData ? (
-          <Chart options={barLabelOptions} series={labelSeries} type="bar" height={300} />
+      {/* ── Dải ngữ cảnh: lớp + học kỳ ── */}
+      <div
+        className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#F0F0F0] bg-white px-5 py-3 shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
+        style={{ borderLeft: '4px solid #E02020' }}
+      >
+        <span className="text-xs font-bold uppercase tracking-wider text-[#E02020]">Cố vấn học tập</span>
+        <span className="text-[#D0D0D0]">|</span>
+        {classLabel ? (
+          <span className="text-sm font-semibold text-[#111111]">{classLabel}</span>
         ) : (
-          <p className="py-16 text-center text-sm text-gray-500 dark:text-gray-400">
-            Chưa có sinh viên trong lớp cố vấn để thống kê nhãn.
-          </p>
+          <span className="text-sm text-[#6B7280]">Chưa chọn lớp</span>
         )}
+        {paginationTotal > 0 && (
+          <>
+            <span className="text-[#D0D0D0]">·</span>
+            <span className="rounded-full bg-[#F9FAFB] px-2.5 py-0.5 text-xs font-semibold text-[#444444] ring-1 ring-[#E0E0E0]">
+              {paginationTotal} sinh viên
+            </span>
+          </>
+        )}
+        {activeTerm ? (
+          <>
+            <span className="text-[#D0D0D0]">·</span>
+            <span className="text-xs text-[#6B7280]">Học kỳ hiện tại:</span>
+            <span className="rounded-full bg-[#FFF0F0] px-2.5 py-0.5 text-xs font-semibold text-[#E02020]">
+              {activeTerm}
+            </span>
+          </>
+        ) : null}
       </div>
+
+      {/* ── 3 biểu đồ lịch sử (hàng ngang) ── */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className={CARD}>
+          <ChartTitle color="#E02020" title="Cảnh báo học tập qua các kỳ"
+            sub="Số sinh viên có ít nhất 1 cảnh báo học tập mỗi kỳ" />
+          {hasHistory
+            ? <Chart options={riskOptions} series={riskSeries} type="bar" height={220} />
+            : <EmptyChart />}
+        </div>
+        <div className={CARD}>
+          <ChartTitle color="#eab308" title="Cảnh báo cảm xúc qua các kỳ"
+            sub="Số sinh viên có ít nhất 1 cảnh báo cảm xúc mỗi kỳ" />
+          {hasHistory
+            ? <Chart options={sentOptions} series={sentSeries} type="bar" height={220} />
+            : <EmptyChart />}
+        </div>
+        <div className={CARD}>
+          <ChartTitle color="#f97316" title="Cảnh báo bất thường qua các kỳ"
+            sub="Số sinh viên có ít nhất 1 cảnh báo bất thường mỗi kỳ" />
+          {hasHistory
+            ? <Chart options={anomOptions} series={anomSeries} type="bar" height={220} />
+            : <EmptyChart />}
+        </div>
+      </div>
+
+      {/* ── Biểu đồ 4: Sinh viên mức Cao (full width) ── */}
+      <div className={CARD}>
+        <ChartTitle color="#dc2626" title="Sinh viên có mức cảnh báo Cao qua các kỳ"
+          sub="Số sinh viên có ít nhất 1 cảnh báo mức Cao (mọi loại cảnh báo) trong kỳ" />
+        {hasHistory
+          ? <Chart options={highOptions} series={highSeries} type="bar" height={240} />
+          : <EmptyChart />}
+      </div>
+
     </div>
   )
 }
 
-function Kpi({
-  title,
-  value,
-  accent,
-  featured,
-  icon,
-}: {
-  title: string
-  value: string | number
-  accent: 'default' | 'muted' | 'warn' | 'danger'
-  featured?: boolean
-  icon?: ReactNode
-}) {
-  const valueClass =
-    accent === 'warn'
-      ? 'text-amber-700 dark:text-amber-400'
-      : accent === 'danger'
-        ? 'text-red-600 dark:text-red-400'
-        : accent === 'muted'
-          ? 'text-gray-500 dark:text-gray-400'
-          : 'text-gray-900 dark:text-white'
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
-  const shell = featured
-    ? 'border-brand-200/70 bg-gradient-to-br from-brand-50 via-white to-violet-50/50 shadow-[0_12px_36px_-10px_rgba(70,95,255,0.28)] ring-1 ring-brand-500/15 dark:border-brand-500/25 dark:from-brand-950/60 dark:via-gray-900 dark:to-violet-950/40 dark:ring-brand-400/10'
-    : 'border-gray-200/90 bg-white shadow-[0_6px_24px_-8px_rgba(15,23,42,0.08)] ring-1 ring-gray-900/[0.03] dark:border-gray-800 dark:bg-gray-900/45 dark:ring-white/[0.04]'
-
+function ChartTitle({ color, title, sub }: { color: string; title: string; sub?: string }) {
   return (
-    <div
-      className={`group relative h-full min-h-[108px] overflow-hidden rounded-2xl border p-5 transition-[box-shadow,transform,border-color] duration-300 hover:-translate-y-0.5 hover:shadow-lg dark:hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.45)] ${shell}`}
-    >
-      <div
-        className={`absolute inset-x-0 top-0 h-1 ${
-          accent === 'danger'
-            ? 'bg-gradient-to-r from-red-500 to-red-600'
-            : accent === 'warn'
-              ? 'bg-gradient-to-r from-amber-400 to-orange-500'
-              : 'bg-gradient-to-r from-brand-500 to-violet-500'
-        }`}
-        aria-hidden
-      />
-      {icon ? (
-        <div
-          className="absolute right-3 top-9 text-gray-300 opacity-40 transition-opacity duration-300 group-hover:opacity-70 dark:text-gray-600 [&>svg]:size-8"
-          aria-hidden
-        >
-          {icon}
-        </div>
-      ) : null}
-      <p className="relative pr-10 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-        {title}
-      </p>
-      <p
-        className={`relative mt-2 tabular-nums tracking-tight ${featured ? 'text-3xl font-extrabold sm:text-4xl' : 'text-2xl font-bold sm:text-3xl'} ${valueClass}`}
-      >
-        {value}
-      </p>
+    <div className="mb-4">
+      <div className="flex items-center gap-2">
+        <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
+        <h3 className="text-sm font-bold text-[#111111]">{title}</h3>
+      </div>
+      <div className="mt-1.5 h-0.5 w-10 rounded-full" style={{ backgroundColor: color, opacity: 0.4 }} aria-hidden />
+      {sub && <p className="mt-2 text-xs text-[#6B7280]">{sub}</p>}
+    </div>
+  )
+}
+
+function EmptyChart() {
+  return (
+    <div className="flex h-[180px] items-center justify-center">
+      <p className="text-xs text-[#9CA3AF]">Chưa có dữ liệu lịch sử để hiển thị.</p>
     </div>
   )
 }

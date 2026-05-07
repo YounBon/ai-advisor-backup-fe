@@ -8,7 +8,6 @@ import {
   MasterDataPage,
   AdvisorClassPage,
   AdminUsersPage,
-  FeedbackListPage,
   Home,
 } from './pages/Admin'
 import {
@@ -23,7 +22,6 @@ import {
   FeedbackPage,
   StudentNotificationsPage,
 } from './pages/Student'
-import FormElements from './pages/Forms/FormElements'
 import LandingPage from './pages/LandingPage'
 import AppLayout from './layout/AppLayout'
 import AdvisorLayout from './layout/AdvisorLayout'
@@ -65,10 +63,8 @@ export default function App() {
             <Route element={<ProtectRoute allowedRoles={['FACULTY', 'ADMIN']} />}>
               <Route element={<AppLayout />}>
                 <Route path="dashboard" element={<Home />} />
-                <Route path="feedback-list" element={<FeedbackListPage />} />
                 <Route path="profile" element={<UserProfiles />} />
                 <Route path="master-data" element={<MasterDataPage />} />
-                <Route path="form-elements" element={<FormElements />} />
                 <Route path="admin-users" element={<AdminUsersPage />} />
               </Route>
             </Route>

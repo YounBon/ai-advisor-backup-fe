@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { viApiMessage } from '@/utils/viApiMessage'
 import PageMeta from '@/components/common/PageMeta'
-import PageBreadcrumb from '@/components/common/PageBreadCrumb'
 import { Modal } from '@/components/ui/modal'
 import Button from '@/components/ui/button/Button'
 import Label from '@/components/form/Label'
@@ -46,9 +45,9 @@ type ListUser = {
   profile?: { full_name?: string }
   org?: {
     department_id?:
-      | string
-      | { _id?: string; department_code?: string; department_name?: string }
-      | null
+    | string
+    | { _id?: string; department_code?: string; department_name?: string }
+    | null
     major_id?: string | { _id?: string; major_code?: string; major_name?: string } | null
   }
   student_info?: { student_code?: string }
@@ -79,6 +78,19 @@ const initialCreateFormState: UserCreateFormState = {
   majorId: '',
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function initialsFromName(name: string | null | undefined): string {
+  const s = (name ?? '').trim()
+  if (!s) return '?'
+  const parts = s.split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) {
+    const a = parts[0][0]; const b = parts[parts.length - 1][0]
+    if (a && b) return `${a}${b}`.toUpperCase()
+  }
+  return s.slice(0, 2).toUpperCase()
+}
+
 function normalizeRefId(raw: unknown): string {
   if (raw == null || raw === '') return ''
   if (typeof raw === 'object' && raw !== null && '_id' in raw) {
@@ -96,7 +108,79 @@ function extractOrgName(
   const item = ref as Record<string, unknown>
   const code = typeof item[keyCode] === 'string' ? item[keyCode] : ''
   const name = typeof item[keyName] === 'string' ? item[keyName] : ''
-  return [code, name].filter(Boolean).join(' - ')
+  return [code, name].filter(Boolean).join(' — ')
+}// ─── Pagination Bar ───────────────────────────────────────────────────────────
+
+function PaginationBar({
+  pagination,
+  page,
+  setPage,
+}: {
+  pagination: Pagination
+  page: number
+  setPage: (p: number) => void
+}) {
+  if (pagination.total_pages <= 1) return null
+  const pages = Array.from({ length: pagination.total_pages }, (_, i) => i + 1)
+    .filter(p => p === 1 || p === pagination.total_pages || Math.abs(p - page) <= 1)
+    .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
+      if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('ellipsis')
+      acc.push(p)
+      return acc
+    }, [])
+
+  return (
+    <div className="flex items-center justify-between border-t border-[#F0F0F0] px-5 py-3.5">
+      <p className="text-xs text-[#6B7280]">
+        Trang <span className="font-semibold text-[#111111]">{pagination.page}</span>
+        {' / '}
+        {pagination.total_pages} &middot;{' '}
+        <span className="font-semibold text-[#111111]">{pagination.total}</span> bản ghi
+      </p>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setPage(Math.max(1, page - 1))}
+          disabled={page <= 1}
+          aria-label="Trang trước"
+          className="flex size-8 items-center justify-center rounded-lg border border-[#F0F0F0] bg-white text-[#6B7280] transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        {pages.map((item, idx) =>
+          item === 'ellipsis' ? (
+            <span key={`e-${idx}`} className="flex size-8 items-center justify-center text-xs text-[#6B7280]">…</span>
+          ) : (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setPage(item)}
+              aria-current={page === item ? 'page' : undefined}
+              className={`flex size-8 items-center justify-center rounded-lg border text-xs font-semibold transition-colors ${page === item
+                ? 'border-[#E02020] bg-[#E02020] text-white'
+                : 'border-[#F0F0F0] bg-white text-[#444444] hover:border-gray-300 hover:bg-gray-50'
+                }`}
+            >
+              {item}
+            </button>
+          )
+        )}
+        <button
+          type="button"
+          onClick={() => setPage(Math.min(pagination.total_pages, page + 1))}
+          disabled={page >= pagination.total_pages}
+          aria-label="Trang sau"
+          className="flex size-8 items-center justify-center rounded-lg border border-[#F0F0F0] bg-white text-[#6B7280] transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export default function AdminUsersPage() {
@@ -195,11 +279,11 @@ export default function AdminUsersPage() {
       return
     }
     if (!createForm.deptId || !createForm.majorId) {
-      toast.error('Phải chọn khoa và ngành cùng lúc (org.department_id + org.major_id)')
+      toast.error('Vui lòng chọn khoa và ngành học')
       return
     }
     if (tab === 'student' && !createForm.studentCode.trim()) {
-      toast.error('Mã sinh viên (student_info.student_code) là bắt buộc')
+      toast.error('Mã sinh viên là bắt buộc')
       return
     }
     const usernameTrim = createForm.username.trim()
@@ -257,40 +341,37 @@ export default function AdminUsersPage() {
         detail.major_name || majorNameFromOrg || normalizeRefId(detail.org?.major_id) || '—'
 
       const lines: [string, string][] = [
-        ['ID', detail._id],
-        ['Username', detail.username],
-        ['Email', detail.email],
-        ['Họ tên', fullName],
-        ['Vai trò', detail.role],
-        ['Trạng thái', detail.status],
-        ['Khoa', departmentDisplay],
-        ['Ngành', majorDisplay],
+        ['Họ và tên', fullName],
+        ['Tên đăng nhập', detail.username],
+        ['Địa chỉ email', detail.email],
+        ['Trạng thái', detail.status === 'ACTIVE' ? 'Đang hoạt động' : 'Không hoạt động'],
+        ['Khoa / Đơn vị', departmentDisplay],
+        ['Ngành học', majorDisplay],
       ]
       if (detail.role === 'STUDENT') {
-        lines.push(['Mã SV', detail.student_info?.student_code ?? '—'])
+        lines.push(['Mã sinh viên', detail.student_info?.student_code ?? '—'])
       }
       if (detail.role === 'ADVISOR') {
-        lines.push(['Mã CB', detail.advisor_info?.staff_code ?? '—'])
+        lines.push(['Mã cán bộ', detail.advisor_info?.staff_code ?? '—'])
         lines.push(['Chức danh', detail.advisor_info?.title ?? '—'])
       }
       setDetailRows(lines)
     } catch {
       setDetailRows([
-        ['ID', row._id],
-        ['Họ tên', row.full_name || row.profile?.full_name || row.username || '—'],
+        ['Họ và tên', row.full_name || row.profile?.full_name || row.username || '—'],
         [
-          'Khoa',
+          'Khoa / Đơn vị',
           row.department_name ||
-            extractOrgName(row.org?.department_id, 'department_code', 'department_name') ||
-            normalizeRefId(row.org?.department_id) ||
-            '—',
+          extractOrgName(row.org?.department_id, 'department_code', 'department_name') ||
+          normalizeRefId(row.org?.department_id) ||
+          '—',
         ],
         [
-          'Ngành',
+          'Ngành học',
           row.major_name ||
-            extractOrgName(row.org?.major_id, 'major_code', 'major_name') ||
-            normalizeRefId(row.org?.major_id) ||
-            '—',
+          extractOrgName(row.org?.major_id, 'major_code', 'major_name') ||
+          normalizeRefId(row.org?.major_id) ||
+          '—',
         ],
       ])
       toast.error('Đã có lỗi xảy ra')
@@ -311,11 +392,16 @@ export default function AdminUsersPage() {
   if (!isAdmin) {
     return (
       <>
-        <PageMeta title="Người dùng | Advisor" description="Chỉ ADMIN" />
-        <PageBreadcrumb pageTitle="Cố vấn & sinh viên" />
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Chỉ tài khoản ADMIN mới tạo cố vấn/sinh viên được.
-        </p>
+        <PageMeta title="Quản lý người dùng | Quản trị hệ thống" description="Chỉ quản trị viên mới có quyền truy cập" />
+        <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-center">
+          <div className="flex size-14 items-center justify-center rounded-2xl bg-[#FFF0F0]">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <p className="text-base font-semibold text-[#111111]">Không có quyền truy cập</p>
+          <p className="text-sm text-[#6B7280]">Chức năng này chỉ dành cho quản trị viên hệ thống.</p>
+        </div>
       </>
     )
   }
@@ -323,275 +409,345 @@ export default function AdminUsersPage() {
   return (
     <>
       <PageMeta
-        title="Cố vấn & sinh viên | Advisor"
-        description="Tạo tài khoản cố vấn và sinh viên (admin-provisioning-flow)"
+        title="Quản lý người dùng | Quản trị hệ thống"
+        description="Quản lý tài khoản cố vấn học tập và sinh viên trong hệ thống"
       />
-      <PageBreadcrumb pageTitle="Cố vấn & sinh viên" />
 
-      <div className="space-y-6">
-        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/3">
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setTab('advisor')}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                tab === 'advisor'
-                  ? 'bg-brand-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
-              }`}
-            >
-              Cố vấn (ADVISOR)
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('student')}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                tab === 'student'
-                  ? 'bg-brand-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
-              }`}
-            >
-              Sinh viên (STUDENT)
-            </button>
-          </div>
+      {/* ── Tiêu đề trang ── */}
+      <div
+        className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#F0F0F0] bg-white px-6 py-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
+        style={{ borderLeft: '4px solid #E02020' }}
+      >
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-[#E02020]">Quản trị hệ thống</p>
+          <h1 className="mt-0.5 text-2xl font-bold text-[#111111]">Quản lý người dùng</h1>
+          <p className="mt-0.5 text-sm text-[#6B7280]">Quản lý tài khoản cố vấn học tập và sinh viên trong hệ thống</p>
         </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/3">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-              {tab === 'advisor' ? 'Danh sách cố vấn' : 'Danh sách sinh viên'}
-            </h2>
-            <Button size="sm" onClick={() => void openCreate()}>
-              {tab === 'advisor' ? 'Thêm cố vấn' : 'Thêm sinh viên'}
-            </Button>
+        {pagination && (
+          <div className="flex items-center gap-2 rounded-xl border border-[#F0F0F0] bg-[#F9FAFB] px-4 py-2.5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="9" cy="7" r="4" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-sm font-semibold text-[#111111]">{pagination.total}</span>
+            <span className="text-xs text-[#6B7280]">{tab === 'advisor' ? 'cố vấn' : 'sinh viên'}</span>
           </div>
-
-          {loading ? (
-            <p className="py-6 text-gray-500">Đang tải...</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table className="text-left text-sm">
-                <TableHeader>
-                  <TableRow className="border-b border-gray-200 dark:border-gray-700">
-                    <TableCell isHeader className="px-3 py-2 font-semibold">
-                      Họ tên
-                    </TableCell>
-                    <TableCell isHeader className="px-3 py-2 font-semibold">
-                      Email
-                    </TableCell>
-                    {tab === 'student' && (
-                      <TableCell isHeader className="px-3 py-2 font-semibold">
-                        Mã SV
-                      </TableCell>
-                    )}
-                    <TableCell isHeader className="px-3 py-2 font-semibold">
-                      Trạng thái
-                    </TableCell>
-                    <TableCell isHeader className="px-3 py-2 font-semibold">
-                      Thao tác
-                    </TableCell>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.length === 0 ? (
-                    <TableRow>
-                      <td className="px-3 py-6 text-gray-500" colSpan={tab === 'student' ? 5 : 4}>
-                        Chưa có dữ liệu.
-                      </td>
-                    </TableRow>
-                  ) : (
-                    rows.map(row => (
-                      <TableRow
-                        key={row._id}
-                        className="border-b border-gray-100 dark:border-gray-800"
-                      >
-                        <TableCell className="px-3 py-2">
-                          {row.full_name || row.profile?.full_name || row.username}
-                        </TableCell>
-                        <TableCell className="px-3 py-2">{row.email}</TableCell>
-                        {tab === 'student' && (
-                          <TableCell className="px-3 py-2">
-                            {row.student_info?.student_code ?? '—'}
-                          </TableCell>
-                        )}
-                        <TableCell className="px-3 py-2">{row.status}</TableCell>
-                        <TableCell className="px-3 py-2">
-                          <Button size="sm" variant="outline" onClick={() => void openDetail(row)}>
-                            Xem
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-
-          {pagination && pagination.total_pages > 1 && (
-            <div className="mt-4 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-              <span>
-                Trang {pagination.page}/{pagination.total_pages} — {pagination.total} bản ghi
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                >
-                  Trước
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={page >= pagination.total_pages}
-                  onClick={() => setPage(p => p + 1)}
-                >
-                  Sau
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
-      <Modal isOpen={detailOpen} onClose={() => setDetailOpen(false)} className="max-w-lg p-6">
-        <h3 className="mb-4 text-lg font-semibold">{detailTitle}</h3>
-        {detailLoading ? (
-          <p className="py-6 text-sm text-gray-500">Đang tải...</p>
-        ) : (
-          <dl className="space-y-2 text-sm">
-            {detailRows.map(([k, v]) => (
-              <div key={k} className="flex gap-2 border-b border-gray-100 pb-2 dark:border-gray-800">
-                <dt className="w-28 shrink-0 font-medium text-gray-500">{k}</dt>
-                <dd className="break-all text-gray-800 dark:text-white/90">{v}</dd>
-              </div>
+      {/* ── Tabs + nội dung ── */}
+      <div className="rounded-2xl border border-[#F0F0F0] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+        {/* Tab bar */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-[#F0F0F0] px-5 py-3">
+          {([
+            { key: 'advisor' as TabKey, label: 'Cố vấn học tập' },
+            { key: 'student' as TabKey, label: 'Sinh viên' },
+          ]).map(t => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={`rounded-lg border px-4 py-2 text-sm font-semibold transition-colors ${tab === t.key
+                ? 'border-[#E02020] bg-[#E02020] text-white'
+                : 'border-[#E0E0E0] bg-white text-[#444444] hover:border-[#E02020]/40 hover:text-[#E02020]'
+                }`}
+            >
+              {t.label}
+            </button>
+          ))}
+          <div className="ml-auto">
+            <button
+              type="button"
+              onClick={() => void openCreate()}
+              className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all active:scale-[0.98]"
+              style={{
+                background: 'linear-gradient(to bottom, #E02020, #C01818)',
+                boxShadow: '0 4px 14px rgba(224,32,32,0.35)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(to bottom, #C01818, #A01010)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(to bottom, #E02020, #C01818)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+              {tab === 'advisor' ? 'Thêm cố vấn' : 'Thêm sinh viên'}
+            </button>
+          </div>
+        </div>
+
+        {/* Nội dung bảng */}
+        {loading ? (
+          <div className="space-y-2 p-5">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="h-11 animate-pulse rounded-xl bg-[#F9FAFB]" />
             ))}
-          </dl>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              {tab === 'advisor' ? (
+                <Table className="w-full text-left text-sm">
+                  <TableHeader>
+                    <TableRow className="border-b border-[#F0F0F0] bg-[#F9FAFB]">
+                      <TableCell isHeader className="whitespace-nowrap px-5 py-3 text-xs font-bold uppercase tracking-wide text-[#6B7280]">Họ và tên</TableCell>
+                      <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-xs font-bold uppercase tracking-wide text-[#6B7280]">Email</TableCell>
+                      <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-xs font-bold uppercase tracking-wide text-[#6B7280]">Mã cán bộ</TableCell>
+                      <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-xs font-bold uppercase tracking-wide text-[#6B7280]">Chức danh</TableCell>
+                      <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-xs font-bold uppercase tracking-wide text-[#6B7280]">Trạng thái</TableCell>
+                      <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-[#6B7280]">Thao tác</TableCell>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="px-4 py-14 text-center">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="flex size-12 items-center justify-center rounded-2xl bg-[#FFF0F0]">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                <circle cx="9" cy="7" r="4" stroke="#E02020" strokeWidth="1.5" />
+                              </svg>
+                            </div>
+                            <p className="text-sm font-semibold text-[#111111]">Chưa có cố vấn nào</p>
+                            <p className="text-xs text-[#6B7280]">Nhấn <span className="font-semibold text-[#E02020]">Thêm cố vấn</span> để bắt đầu.</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rows.map(row => (
+                        <TableRow key={row._id} className="border-b border-[#F0F0F0] bg-white transition-colors last:border-0 hover:bg-[#FFF8F8]">
+                          <TableCell className="px-5 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#FFF0F0] text-xs font-bold text-[#E02020]">
+                                {initialsFromName(row.full_name || row.profile?.full_name)}
+                              </div>
+                              <span className="font-semibold text-[#111111]">
+                                {row.full_name || row.profile?.full_name || row.username || '—'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5 text-[#444444]">{row.email}</TableCell>
+                          <TableCell className="px-4 py-3.5 font-mono text-sm text-[#6B7280]">
+                            {row.advisor_info?.staff_code ?? '—'}
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5 text-[#6B7280]">
+                            {row.advisor_info?.title ?? '—'}
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5">
+                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${row.status === 'ACTIVE' ? 'bg-[#F0FDF4] text-emerald-700' : 'bg-[#F9FAFB] text-[#6B7280]'
+                              }`}>
+                              {row.status === 'ACTIVE' ? 'Đang hoạt động' : 'Không hoạt động'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5 text-right">
+                            <Button type="button" size="sm" variant="outline"
+                              className="border-[#E0E0E0] text-[#444444] hover:border-[#E02020]/40 hover:text-[#E02020]"
+                              onClick={() => void openDetail(row)}>
+                              Chi tiết
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              ) : (
+                <Table className="w-full text-left text-sm">
+                  <TableHeader>
+                    <TableRow className="border-b border-[#F0F0F0] bg-[#F9FAFB]">
+                      <TableCell isHeader className="whitespace-nowrap px-5 py-3 text-xs font-bold uppercase tracking-wide text-[#6B7280]">Họ và tên</TableCell>
+                      <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-xs font-bold uppercase tracking-wide text-[#6B7280]">Email</TableCell>
+                      <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-xs font-bold uppercase tracking-wide text-[#6B7280]">Mã sinh viên</TableCell>
+                      <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-xs font-bold uppercase tracking-wide text-[#6B7280]">Trạng thái</TableCell>
+                      <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-[#6B7280]">Thao tác</TableCell>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="px-4 py-14 text-center">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="flex size-12 items-center justify-center rounded-2xl bg-[#FFF0F0]">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                <path d="M12 14l9-5-9-5-9 5 9 5z" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </div>
+                            <p className="text-sm font-semibold text-[#111111]">Chưa có sinh viên nào</p>
+                            <p className="text-xs text-[#6B7280]">Nhấn <span className="font-semibold text-[#E02020]">Thêm sinh viên</span> để bắt đầu.</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rows.map(row => (
+                        <TableRow key={row._id} className="border-b border-[#F0F0F0] bg-white transition-colors last:border-0 hover:bg-[#FFF8F8]">
+                          <TableCell className="px-5 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#FFF0F0] text-xs font-bold text-[#E02020]">
+                                {initialsFromName(row.full_name || row.profile?.full_name)}
+                              </div>
+                              <span className="font-semibold text-[#111111]">
+                                {row.full_name || row.profile?.full_name || row.username || '—'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5 text-[#444444]">{row.email}</TableCell>
+                          <TableCell className="px-4 py-3.5 font-mono text-sm font-semibold text-[#111111]">
+                            {row.student_info?.student_code ?? '—'}
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5">
+                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${row.status === 'ACTIVE' ? 'bg-[#F0FDF4] text-emerald-700' : 'bg-[#F9FAFB] text-[#6B7280]'
+                              }`}>
+                              {row.status === 'ACTIVE' ? 'Đang hoạt động' : 'Không hoạt động'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5 text-right">
+                            <Button type="button" size="sm" variant="outline"
+                              className="border-[#E0E0E0] text-[#444444] hover:border-[#E02020]/40 hover:text-[#E02020]"
+                              onClick={() => void openDetail(row)}>
+                              Chi tiết
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+            {pagination && <PaginationBar pagination={pagination} page={page} setPage={setPage} />}
+          </>
         )}
-        <div className="mt-6 flex justify-end">
-          <Button size="sm" variant="outline" onClick={() => setDetailOpen(false)}>
-            Đóng
-          </Button>
+      </div>
+
+      {/* ── Modal chi tiết ── */}
+      <Modal isOpen={detailOpen} onClose={() => setDetailOpen(false)} className="max-w-md overflow-hidden p-0">
+        <div className="border-b border-[#F0F0F0] px-6 py-4" style={{ borderLeft: '4px solid #E02020' }}>
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-[#FFF0F0]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="7" r="4" stroke="#E02020" strokeWidth="1.5" />
+              </svg>
+            </span>
+            <div>
+              <h3 className="text-base font-bold text-[#111111]">{detailTitle}</h3>
+              <p className="text-xs text-[#6B7280]">Thông tin chi tiết tài khoản</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-6">
+          {detailLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-10 animate-pulse rounded-xl bg-[#F9FAFB]" />
+              ))}
+            </div>
+          ) : (
+            <dl className="grid gap-3 rounded-2xl border border-[#F0F0F0] bg-[#F9FAFB] p-4 text-sm">
+              {detailRows.map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-[10px] font-bold uppercase tracking-wide text-[#6B7280]">{label}</dt>
+                  <dd className="mt-1 break-all font-semibold text-[#111111]">{value || '—'}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          <div className="mt-5 flex justify-end border-t border-[#F0F0F0] pt-4">
+            <Button type="button" size="sm" variant="outline"
+              className="border-[#E0E0E0] text-[#444444]"
+              onClick={() => setDetailOpen(false)}>
+              Đóng
+            </Button>
+          </div>
         </div>
       </Modal>
 
+      {/* ── Modal thêm tài khoản ── */}
       <Modal
         isOpen={createOpen}
         onClose={() => !saving && setCreateOpen(false)}
-        className="mx-4 w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 sm:p-8"
+        className="flex max-h-[90vh] max-w-2xl flex-col overflow-hidden p-0"
       >
-        <h3 className="mb-2 text-lg font-semibold sm:text-xl">
-          {tab === 'advisor' ? 'Thêm cố vấn' : 'Thêm sinh viên'}
-        </h3>
-        <p className="mb-6 text-xs text-gray-500 dark:text-gray-400">
-          API: <code>POST /api/users/create</code> — khoa và ngành bắt buộc cùng nhau.
-        </p>
-        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-          <div className="min-w-0">
-            <Label htmlFor="u-fullname">Họ tên *</Label>
-            <InputField
-              id="u-fullname"
-              value={createForm.fullName}
-              onChange={e => setCreateFormField('fullName', e.target.value)}
-              disabled={saving}
-            />
-          </div>
-          <div className="min-w-0">
-            <Label htmlFor="u-email">Email *</Label>
-            <InputField
-              id="u-email"
-              type="email"
-              value={createForm.email}
-              onChange={e => setCreateFormField('email', e.target.value)}
-              disabled={saving}
-            />
-          </div>
-          <div className="min-w-0">
-            <Label htmlFor="u-username">Username (tùy, ≥3 ký tự)</Label>
-            <InputField
-              id="u-username"
-              value={createForm.username}
-              onChange={e => setCreateFormField('username', e.target.value)}
-              disabled={saving}
-            />
-          </div>
-          <div className="min-w-0">
-            <Label htmlFor="u-password">Mật khẩu *</Label>
-            <InputField
-              id="u-password"
-              type="password"
-              value={createForm.password}
-              onChange={e => setCreateFormField('password', e.target.value)}
-              disabled={saving}
-            />
-          </div>
-          {tab === 'student' ? (
-            <div className="min-w-0 sm:col-span-2">
-              <Label htmlFor="u-masv">Mã sinh viên *</Label>
-              <InputField
-                id="u-masv"
-                value={createForm.studentCode}
-                onChange={e => setCreateFormField('studentCode', e.target.value)}
-                disabled={saving}
-              />
+        <div className="shrink-0 border-b border-[#F0F0F0] px-6 py-4" style={{ borderLeft: '4px solid #E02020' }}>
+          <h3 className="text-base font-bold text-[#111111]">
+            {tab === 'advisor' ? 'Thêm cố vấn học tập mới' : 'Thêm sinh viên mới'}
+          </h3>
+          <p className="text-xs text-[#6B7280]">
+            {tab === 'advisor'
+              ? 'Điền đầy đủ thông tin để tạo tài khoản cố vấn'
+              : 'Điền đầy đủ thông tin để tạo tài khoản sinh viên'}
+          </p>
+        </div>
+        <div className="overflow-y-auto p-6">
+          <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="u-fullname">Họ và tên <span className="text-[#E02020]">*</span></Label>
+              <InputField id="u-fullname" placeholder="Nhập họ và tên đầy đủ"
+                value={createForm.fullName} onChange={e => setCreateFormField('fullName', e.target.value)} disabled={saving} />
             </div>
-          ) : (
-            <>
-              <div className="min-w-0">
-                <Label htmlFor="u-staff">Mã cán bộ (tùy)</Label>
-                <InputField
-                  id="u-staff"
-                  value={createForm.staffCode}
-                  onChange={e => setCreateFormField('staffCode', e.target.value)}
-                  disabled={saving}
-                />
+            <div>
+              <Label htmlFor="u-email">Địa chỉ email <span className="text-[#E02020]">*</span></Label>
+              <InputField id="u-email" type="email" placeholder="Nhập địa chỉ email"
+                value={createForm.email} onChange={e => setCreateFormField('email', e.target.value)} disabled={saving} />
+            </div>
+            <div>
+              <Label htmlFor="u-username">Tên đăng nhập <span className="text-xs font-normal text-[#6B7280]">(không bắt buộc, tối thiểu 3 ký tự)</span></Label>
+              <InputField id="u-username" placeholder="Để trống hệ thống sẽ tự tạo"
+                value={createForm.username} onChange={e => setCreateFormField('username', e.target.value)} disabled={saving} />
+            </div>
+            <div>
+              <Label htmlFor="u-password">Mật khẩu <span className="text-[#E02020]">*</span></Label>
+              <InputField id="u-password" type="password" placeholder="Tối thiểu 6 ký tự"
+                value={createForm.password} onChange={e => setCreateFormField('password', e.target.value)} disabled={saving} />
+            </div>
+            {tab === 'student' ? (
+              <div className="sm:col-span-2">
+                <Label htmlFor="u-masv">Mã sinh viên <span className="text-[#E02020]">*</span></Label>
+                <InputField id="u-masv" placeholder="Nhập mã sinh viên"
+                  value={createForm.studentCode} onChange={e => setCreateFormField('studentCode', e.target.value)} disabled={saving} />
               </div>
-              <div className="min-w-0">
-                <Label htmlFor="u-title">Chức danh (tùy)</Label>
-                <InputField
-                  id="u-title"
-                  value={createForm.advisorTitle}
-                  onChange={e => setCreateFormField('advisorTitle', e.target.value)}
-                  disabled={saving}
-                  placeholder="VD: ThS"
-                />
-              </div>
-            </>
-          )}
-          <div className="min-w-0">
-            <Label>Khoa *</Label>
-            <Select
-              key={`creat-dept-${createOpen}-${deptPicklist.length}`}
-              options={deptOptions}
-              placeholder="Chọn khoa"
-              onChange={v => void onDeptChange(v)}
-              defaultValue={createForm.deptId}
-            />
-          </div>
-          <div className="min-w-0">
-            <Label>Ngành *</Label>
-            <Select
-              key={`creat-maj-${createForm.deptId}-${majorPicklist.length}`}
-              options={majorOptions}
-              placeholder="Chọn ngành (sau khi chọn khoa)"
-              onChange={v => setCreateFormField('majorId', v)}
-              defaultValue={createForm.majorId}
-            />
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="u-staff">Mã cán bộ <span className="text-xs font-normal text-[#6B7280]">(không bắt buộc)</span></Label>
+                  <InputField id="u-staff" placeholder="Nhập mã cán bộ"
+                    value={createForm.staffCode} onChange={e => setCreateFormField('staffCode', e.target.value)} disabled={saving} />
+                </div>
+                <div>
+                  <Label htmlFor="u-title">Chức danh <span className="text-xs font-normal text-[#6B7280]">(không bắt buộc)</span></Label>
+                  <InputField id="u-title" placeholder="Ví dụ: Thạc sĩ, Tiến sĩ"
+                    value={createForm.advisorTitle} onChange={e => setCreateFormField('advisorTitle', e.target.value)} disabled={saving} />
+                </div>
+              </>
+            )}
+            <div>
+              <Label>Khoa / Đơn vị <span className="text-[#E02020]">*</span></Label>
+              <Select
+                key={`dept-${createOpen}-${deptPicklist.length}`}
+                options={deptOptions} placeholder="Chọn khoa"
+                onChange={v => void onDeptChange(v)} defaultValue={createForm.deptId} />
+            </div>
+            <div>
+              <Label>Ngành học <span className="text-[#E02020]">*</span></Label>
+              <Select
+                key={`maj-${createForm.deptId}-${majorPicklist.length}`}
+                options={majorOptions}
+                placeholder={createForm.deptId ? 'Chọn ngành' : 'Chọn khoa trước'}
+                onChange={v => setCreateFormField('majorId', v)} defaultValue={createForm.majorId} />
+            </div>
           </div>
         </div>
-        <div className="mt-6 flex justify-end gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={saving}
-            onClick={() => setCreateOpen(false)}
-          >
+        <div className="shrink-0 flex justify-end gap-2 border-t border-[#F0F0F0] bg-[#F9FAFB] px-6 py-4">
+          <Button type="button" size="sm" variant="outline"
+            className="border-[#E0E0E0] text-[#444444]"
+            disabled={saving} onClick={() => setCreateOpen(false)}>
             Hủy
           </Button>
-          <Button size="sm" disabled={saving} onClick={() => void submitCreate()}>
-            {saving ? 'Đang lưu...' : 'Tạo'}
+          <Button type="button" size="sm" variant="danger"
+            disabled={saving} onClick={() => void submitCreate()}>
+            {saving ? 'Đang lưu...' : tab === 'advisor' ? 'Tạo cố vấn' : 'Tạo sinh viên'}
           </Button>
         </div>
       </Modal>

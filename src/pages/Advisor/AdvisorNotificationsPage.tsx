@@ -1,486 +1,380 @@
 import { useCallback, useEffect, useState } from 'react'
-
 import { toast } from 'sonner'
-
 import PageMeta from '@/components/common/PageMeta'
-
-import PageBreadcrumb from '@/components/common/PageBreadCrumb'
-
-import Button from '@/components/ui/button/Button'
-
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/ui/table'
-
 import { notificationService } from '@/services/NotificationService'
-
-import {
-
-  AlertIcon,
-
-  AngleLeftIcon,
-
-  AngleRightIcon,
-
-  BoltIcon,
-
-  CheckLineIcon,
-  TimeIcon,
-
-} from '@/icons'
-
-
+import { AlertIcon, BoltIcon, CheckLineIcon, TimeIcon } from '@/icons'
 
 type Pagination = {
-
   page: number
-
   limit: number
-
   total: number
-
   total_pages: number
-
 }
-
-
 
 type NotifRow = {
-
   _id: string
-
-  type?: string
-
   title?: string
-
   content?: string
-
   sent_at?: string
-
   is_read?: boolean
-
+  class_display?: string | null
+  alert_id?: {
+    alert_type?: string
+    severity?: string
+    term_id?: { term_code?: string; term_name?: string } | string | null
+  } | string | null
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function termLabel(row: NotifRow): string {
+  const a = row.alert_id
+  if (!a || typeof a !== 'object') return '—'
+  const t = a.term_id
+  if (t && typeof t === 'object') return t.term_name || t.term_code || '—'
+  return '—'
+}
+
+function alertType(row: NotifRow): string {
+  const a = row.alert_id
+  if (a && typeof a === 'object' && a.alert_type) return a.alert_type
+  return '—'
+}
+
+function alertTypeBadge(type: string) {
+  switch (type) {
+    case 'RISK':
+      return { label: 'Rủi ro học tập', cls: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300' }
+    case 'SENTIMENT':
+      return { label: 'Cảm xúc tiêu cực', cls: 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-300' }
+    case 'ANOMALY':
+      return { label: 'Bất thường', cls: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200' }
+    default:
+      return { label: type, cls: 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-white/5 dark:text-gray-300' }
+  }
+}
 
 function formatDt(iso?: string): string {
-
   if (!iso) return '—'
-
-  try {
-
-    return new Date(iso).toLocaleString('vi-VN')
-
-  } catch {
-
-    return iso
-
-  }
-
+  try { return new Date(iso).toLocaleString('vi-VN') } catch { return iso }
 }
 
+// ─── Pagination bar ────────────────────────────────────────────────────────────
+function PaginationBar({ page, totalPages, total, onPage }: {
+  page: number; totalPages: number; total: number; onPage: (p: number) => void
+}) {
+  if (totalPages <= 1) return null
+  return (
+    <div className="mt-4 flex items-center justify-between border-t border-[#F0F0F0] pt-4 dark:border-gray-800">
+      <p className="text-xs text-[#6B7280]">
+        Trang <span className="font-semibold text-[#111111]">{page}</span> / {totalPages} ·{' '}
+        <span className="font-semibold text-[#111111]">{total}</span> thông báo
+      </p>
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={() => onPage(Math.max(1, page - 1))} disabled={page === 1}
+          aria-label="Trang trước"
+          className="flex size-8 items-center justify-center rounded-lg border border-[#F0F0F0] bg-white text-[#6B7280] transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1)
+          .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+          .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
+            if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('ellipsis')
+            acc.push(p)
+            return acc
+          }, [])
+          .map((item, idx) =>
+            item === 'ellipsis' ? (
+              <span key={`e-${idx}`} className="flex size-8 items-center justify-center text-xs text-[#6B7280]">…</span>
+            ) : (
+              <button key={item} type="button" onClick={() => onPage(item)}
+                aria-current={page === item ? 'page' : undefined}
+                className={`flex size-8 items-center justify-center rounded-lg border text-xs font-semibold transition-colors ${page === item
+                  ? 'border-[#E02020] bg-[#E02020] text-white'
+                  : 'border-[#F0F0F0] bg-white text-[#444444] hover:border-gray-300 hover:bg-gray-50'
+                  }`}>
+                {item}
+              </button>
+            )
+          )}
+        <button type="button" onClick={() => onPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}
+          aria-label="Trang sau"
+          className="flex size-8 items-center justify-center rounded-lg border border-[#F0F0F0] bg-white text-[#6B7280] transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      </div>
+    </div>
+  )
+}
 
-
+// ─── Page ──────────────────────────────────────────────────────────────────────
 export default function AdvisorNotificationsPage() {
-
   const [page, setPage] = useState(1)
-
-  const limit = 20
-
+  const limit = 10
   const [loading, setLoading] = useState(false)
-
+  const [marking, setMarking] = useState<string | 'all' | null>(null)
   const [rows, setRows] = useState<NotifRow[]>([])
-
   const [pagination, setPagination] = useState<Pagination | null>(null)
+  const [totalUnread, setTotalUnread] = useState(0)
+  const [totalRead, setTotalRead] = useState(0)
 
-  const loadList = useCallback(async () => {
+  const unreadCount = rows.filter(r => !r.is_read).length
 
+  const loadList = useCallback(async (p = page) => {
     setLoading(true)
-
     try {
-
-      const res = await notificationService.listNotifications({ page, limit })
-
-      const data = res.data as { items: NotifRow[]; pagination: Pagination }
-
+      const [listRes, unreadRes, readRes] = await Promise.all([
+        notificationService.listNotifications({ page: p, limit }),
+        notificationService.listNotifications({ page: 1, limit: 1, is_read: false }),
+        notificationService.listNotifications({ page: 1, limit: 1, is_read: true }),
+      ])
+      const data = listRes.data as { items: NotifRow[]; pagination: Pagination }
       setRows(data.items ?? [])
-
       setPagination(data.pagination ?? null)
-
+      setTotalUnread((unreadRes.data as { pagination: Pagination }).pagination?.total ?? 0)
+      setTotalRead((readRes.data as { pagination: Pagination }).pagination?.total ?? 0)
     } catch {
-
       toast.error('Không tải được thông báo')
-
       setRows([])
-
       setPagination(null)
-
     } finally {
-
       setLoading(false)
-
     }
-
   }, [page, limit])
 
+  useEffect(() => { void loadList() }, [loadList])
 
+  const handleMarkOne = async (id: string) => {
+    setMarking(id)
+    try {
+      await notificationService.markAsRead({ notification_id: id })
+      setRows(prev => prev.map(r => r._id === id ? { ...r, is_read: true } : r))
+      setTotalUnread(prev => Math.max(0, prev - 1))
+      setTotalRead(prev => prev + 1)
+    } catch {
+      toast.error('Không thể đánh dấu đã đọc')
+    } finally {
+      setMarking(null)
+    }
+  }
 
-  useEffect(() => {
+  const handleMarkAll = async () => {
+    setMarking('all')
+    try {
+      await notificationService.markAsRead({ mark_all: true })
+      setRows(prev => prev.map(r => ({ ...r, is_read: true })))
+      setTotalRead(prev => prev + totalUnread)
+      setTotalUnread(0)
+      toast.success('Đã đánh dấu tất cả là đã đọc')
+    } catch {
+      toast.error('Không thể đánh dấu tất cả')
+    } finally {
+      setMarking(null)
+    }
+  }
 
-    void loadList()
-
-  }, [loadList])
-
+  const handlePage = (p: number) => {
+    setPage(p)
+    void loadList(p)
+  }
 
   return (
-
     <>
+      <PageMeta title="Thông báo & cảnh báo | Cố vấn học tập" description="Cảnh báo rủi ro và thông báo từ hệ thống AI-Advisor" />
 
-      <PageMeta
-
-        title="Thông báo | Advisor"
-
-        description="POST /api/notification/list và /notification/generate"
-
-      />
-
-      <PageBreadcrumb pageTitle="Thông báo & cảnh báo" />
-
-
-
+      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
       <section
-
-        className="relative mb-8 overflow-hidden rounded-2xl border border-brand-200/45 bg-gradient-to-br from-brand-50 via-white to-amber-50/35 p-5 shadow-[0_12px_40px_-14px_rgba(70,95,255,0.26)] ring-1 ring-brand-500/10 dark:border-brand-500/20 dark:from-brand-950/45 dark:via-gray-900 dark:to-amber-950/20 dark:ring-brand-400/10 sm:p-6 md:flex md:items-center md:justify-between md:gap-8"
-
-        aria-labelledby="notif-hero-title"
-
+        className="relative mb-8 overflow-hidden rounded-2xl border border-[#E02020]/20 bg-gradient-to-br from-[#FFF0F0] via-white to-rose-50/40 p-5 shadow-[0_12px_40px_-14px_rgba(224,32,32,0.2)] ring-1 ring-[#E02020]/10 sm:p-6"
+        aria-labelledby="advisor-notif-hero-title"
       >
+        <div className="pointer-events-none absolute -right-14 -top-16 size-44 rounded-full bg-[#E02020]/10 blur-3xl" aria-hidden />
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <p className="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#E02020] shadow-sm ring-1 ring-[#E02020]/20">
+              <BoltIcon className="size-3.5 shrink-0" aria-hidden />
+              Cố vấn học tập
+            </p>
+            <h2 id="advisor-notif-hero-title" className="mt-3 text-xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-2xl">
+              Thông báo & cảnh báo từ hệ thống
+            </h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+              Hệ thống AI sẽ gửi cảnh báo khi phát hiện sinh viên trong lớp bạn có nguy cơ học tập cao, cảm xúc tiêu cực hoặc dấu hiệu bất thường cần can thiệp sớm.
+            </p>
+          </div>
 
-        <div
-
-          className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-brand-400/18 blur-3xl dark:bg-brand-500/12"
-
-          aria-hidden
-
-        />
-
-        <div className="relative z-10 max-w-2xl">
-
-          <p className="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-700 shadow-sm ring-1 ring-brand-200/70 dark:bg-white/5 dark:text-brand-300 dark:ring-brand-500/25">
-
-            <BoltIcon className="size-3.5 shrink-0" aria-hidden />
-
-            Hộp thư cố vấn
-
-          </p>
-
-          <h2
-
-            id="notif-hero-title"
-
-            className="mt-3 text-xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-2xl"
-
-          >
-
-            Cảnh báo rủi ro & thông báo sau phân tích
-
-          </h2>
-
-          <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-
-            Xem lịch sử bên dưới; khi cần làm mới cảnh báo theo ngưỡng bạn chọn — bấm nút chính bên
-
-            phải (gọi API generate trong phạm vi lớp của bạn).
-
-          </p>
-
+          {/* Stat cards */}
+          <div className="flex shrink-0 flex-wrap gap-3 lg:flex-nowrap">
+            <div className="flex min-w-[100px] flex-col items-center justify-center rounded-xl border border-[#E02020]/15 bg-white/80 px-5 py-4 text-center shadow-sm">
+              <span className="tabular-nums text-2xl font-extrabold text-[#E02020]">
+                {pagination?.total ?? rows.length}
+              </span>
+              <span className="mt-1 text-[11px] font-medium text-gray-500">Tổng</span>
+            </div>
+            <div className="flex min-w-[100px] flex-col items-center justify-center rounded-xl border border-[#E02020]/15 bg-white/80 px-5 py-4 text-center shadow-sm">
+              <span className="tabular-nums text-2xl font-extrabold text-amber-500">
+                {totalUnread}
+              </span>
+              <span className="mt-1 text-[11px] font-medium text-gray-500">Chưa đọc</span>
+            </div>
+            <div className="flex min-w-[100px] flex-col items-center justify-center rounded-xl border border-[#E02020]/15 bg-white/80 px-5 py-4 text-center shadow-sm">
+              <span className="tabular-nums text-2xl font-extrabold text-[#12B76A]">
+                {totalRead}
+              </span>
+              <span className="mt-1 text-[11px] font-medium text-gray-500">Đã đọc</span>
+            </div>
+          </div>
         </div>
       </section>
 
-
-
-      <div className="rounded-2xl border border-gray-200/90 bg-white p-5 shadow-[0_10px_40px_-12px_rgba(15,23,42,0.12)] ring-1 ring-gray-900/[0.035] dark:border-gray-800 dark:bg-gray-900/50 dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] dark:ring-white/[0.05] sm:p-6">
-
-        <div className="mb-5 flex flex-col gap-2 border-b border-gray-100 pb-4 dark:border-gray-800 sm:flex-row sm:items-end sm:justify-between">
-
-          <div>
-
-            <p className="text-[11px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
-
-              Danh sách
-
-            </p>
-
-            <h3 className="mt-1 flex items-center gap-2 text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-
-              <TimeIcon className="size-6 text-brand-500 dark:text-brand-400" aria-hidden />
-
-              Thông báo gần đây
-
-            </h3>
-
+      {/* ── BẢNG ─────────────────────────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-[#F0F0F0] bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] sm:p-6">
+        {/* Header */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
+          <h2 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white/90">
+            <TimeIcon className="size-5 text-[#E02020]" aria-hidden />
+            Thông báo gần đây
+          </h2>
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                onClick={() => void handleMarkAll()}
+                disabled={marking === 'all'}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#F0F0F0] bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <CheckLineIcon className="size-3.5 shrink-0" aria-hidden />
+                {marking === 'all' ? 'Đang xử lý...' : 'Đánh dấu tất cả đã đọc'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void loadList()}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#F0F0F0] bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <svg className={`size-3.5 shrink-0 ${loading ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none">
+                <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {loading ? 'Đang tải...' : 'Làm mới'}
+            </button>
           </div>
-
-          {pagination != null ? (
-
-            <span className="inline-flex items-center gap-2 rounded-xl border border-gray-200/90 bg-gray-50/90 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-white/5 dark:text-gray-200">
-
-              <span className="tabular-nums text-gray-900 dark:text-white">{pagination.total}</span>
-
-              <span className="font-normal text-gray-500">bản ghi</span>
-
-            </span>
-
-          ) : null}
-
         </div>
 
-
-
         {loading ? (
-
           <div className="space-y-3 py-4" aria-busy="true">
-
-            {[1, 2, 3, 4, 5, 6].map(i => (
-
+            {[1, 2, 3, 4, 5].map(i => (
               <div key={i} className="h-11 animate-pulse rounded-lg bg-gray-100 dark:bg-white/10" />
-
             ))}
-
           </div>
-
         ) : (
-
           <>
-
-            <Table className="text-left text-sm">
-
-              <TableHeader>
-
-                <TableRow className="border-b border-gray-200 bg-gray-50/90 dark:border-gray-800 dark:bg-white/[0.04]">
-
-                  <TableCell isHeader className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-
-                    Thời gian
-
-                  </TableCell>
-
-                  <TableCell isHeader className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-
-                    Nội dung
-
-                  </TableCell>
-
-                  <TableCell isHeader className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-
-                    Trạng thái
-
-                  </TableCell>
-
-                </TableRow>
-
-              </TableHeader>
-
-              <TableBody>
-
-                {rows.length === 0 ? (
-
-                  <TableRow>
-
-                    <TableCell colSpan={3} className="px-4 py-14 text-center">
-
-                      <div className="mx-auto flex max-w-sm flex-col items-center gap-2">
-
-                        <div className="flex size-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
-
-                          <BoltIcon className="size-6" aria-hidden />
-
-                        </div>
-
-                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-
-                          Chưa có thông báo
-
-                        </p>
-
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-
-                          Chạy <span className="font-semibold text-brand-600">Tạo / làm mới cảnh báo</span> phía
-
-                          trên để sinh cảnh báo từ dữ liệu lớp.
-
-                        </p>
-
-                      </div>
-
+            <div className="overflow-x-auto">
+              <Table className="text-sm">
+                <TableHeader>
+                  <TableRow className="border-b border-[#F0F0F0] bg-[#F9FAFB]">
+                    <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-[#6B7280]">
+                      Thời gian
                     </TableCell>
-
+                    <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-[#6B7280]">
+                      Loại cảnh báo
+                    </TableCell>
+                    <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-[#6B7280]">
+                      Học kỳ
+                    </TableCell>
+                    <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-[#6B7280]">
+                      Lớp
+                    </TableCell>
+                    <TableCell isHeader className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-[#6B7280]">
+                      Nội dung
+                    </TableCell>
+                    <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-[#6B7280]">
+                      Trạng thái
+                    </TableCell>
                   </TableRow>
-
-                ) : (
-
-                  rows.map(row => (
-
-                    <TableRow
-
-                      key={row._id}
-
-                      className="border-b border-gray-100 transition-colors duration-150 hover:bg-gray-50/90 dark:border-gray-800 dark:hover:bg-white/[0.03]"
-
-                    >
-
-                      <TableCell className="whitespace-nowrap px-4 py-3.5 text-xs text-gray-700 dark:text-gray-300">
-
-                        {formatDt(row.sent_at)}
-
-                      </TableCell>
-
-                      <TableCell className="max-w-md px-4 py-3.5">
-
-                        {row.type ? (
-
-                          <span className="mb-1 inline-flex rounded-md border border-gray-200/90 bg-gray-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-white/5 dark:text-gray-400">
-
-                            {row.type}
-
-                          </span>
-
-                        ) : null}
-
-                        <div className="font-semibold text-gray-900 dark:text-white/90">
-
-                          {row.title ?? '—'}
-
-                        </div>
-
-                        {row.content ? (
-
-                          <p className="mt-1 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">
-
-                            {row.content}
-
+                </TableHeader>
+                <TableBody>
+                  {rows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="px-4 py-14 text-center">
+                        <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
+                          <div className="flex size-12 items-center justify-center rounded-2xl bg-[#FFF0F0] text-[#E02020]">
+                            <BoltIcon className="size-6" aria-hidden />
+                          </div>
+                          <p className="text-sm font-semibold text-[#111111]">Chưa có thông báo nào</p>
+                          <p className="text-xs text-[#6B7280]">
+                            Khi AI phát hiện sinh viên có dấu hiệu rủi ro, thông báo sẽ xuất hiện tại đây.
                           </p>
-
-                        ) : null}
-
+                        </div>
                       </TableCell>
-
-                      <TableCell className="px-4 py-3.5 text-right">
-
-                        {row.is_read ? (
-
-                          <span className="inline-flex items-center justify-end gap-1.5 rounded-lg border border-emerald-200/80 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-200">
-
-                            <CheckLineIcon className="size-3.5 shrink-0" aria-hidden />
-
-                            Đã đọc
-
-                          </span>
-
-                        ) : (
-
-                          <span className="inline-flex items-center justify-end gap-1.5 rounded-lg border border-amber-200/80 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-100">
-
-                            <AlertIcon className="size-3.5 shrink-0" aria-hidden />
-
-                            Chưa đọc
-
-                          </span>
-
-                        )}
-
-                      </TableCell>
-
                     </TableRow>
+                  ) : (
+                    rows.map(row => {
+                      const type = alertType(row)
+                      const badge = alertTypeBadge(type)
+                      const isMarkingThis = marking === row._id
+                      return (
+                        <TableRow
+                          key={row._id}
+                          className={`border-b border-[#F0F0F0] transition-colors last:border-0 hover:bg-[#FFF8F8] ${!row.is_read ? 'bg-[#FFFAFA]' : 'bg-white'}`}
+                        >
+                          <TableCell className="whitespace-nowrap px-4 py-3.5 text-xs text-[#6B7280]">
+                            {formatDt(row.sent_at)}
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5 text-center">
+                            <span className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${badge.cls}`}>
+                              {badge.label}
+                            </span>
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5 text-center text-xs text-[#6B7280]">
+                            {termLabel(row)}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap px-4 py-3.5 text-center text-xs font-medium text-[#444444]">
+                            {row.class_display ?? '—'}
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5">
+                            <div className={`font-semibold ${!row.is_read ? 'text-[#111111]' : 'text-[#444444]'}`}>
+                              {row.title ?? '—'}
+                            </div>
+                            {row.content && (
+                              <p className="mt-1 text-xs text-[#6B7280]">{row.content}</p>
+                            )}
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5 text-center">
+                            {row.is_read ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200/80 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">
+                                <CheckLineIcon className="size-3.5 shrink-0" aria-hidden />
+                                Đã đọc
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => void handleMarkOne(row._id)}
+                                disabled={isMarkingThis || marking === 'all'}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200/80 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-900 transition-colors hover:border-amber-300 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <AlertIcon className="size-3.5 shrink-0" aria-hidden />
+                                {isMarkingThis ? '...' : 'Chưa đọc'}
+                              </button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
 
-                  ))
-
-                )}
-
-              </TableBody>
-
-            </Table>
-
-            {pagination && pagination.total_pages > 1 && (
-
-              <div className="mt-6 flex flex-col gap-3 border-t border-gray-100 pt-4 text-sm text-gray-600 dark:border-gray-800 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between">
-
-                <span className="tabular-nums">
-
-                  Trang{' '}
-
-                  <span className="font-semibold text-gray-900 dark:text-white">{pagination.page}</span>
-
-                  <span className="mx-1 text-gray-400">/</span>
-
-                  {pagination.total_pages} —{' '}
-
-                  <span className="font-semibold text-gray-900 dark:text-white">{pagination.total}</span> bản ghi
-
-                </span>
-
-                <div className="flex gap-2">
-
-                  <Button
-
-                    type="button"
-
-                    size="xs"
-
-                    variant="outline"
-
-                    className="!px-2.5 font-semibold"
-
-                    disabled={page <= 1}
-
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-
-                    aria-label="Trang trước"
-
-                    startIcon={<AngleLeftIcon className="size-4" aria-hidden />}
-
-                  >
-
-                    <span className="sr-only">Trang trước</span>
-
-                  </Button>
-
-                  <Button
-
-                    type="button"
-
-                    size="xs"
-
-                    variant="outline"
-
-                    className="!px-2.5 font-semibold"
-
-                    disabled={page >= pagination.total_pages}
-
-                    onClick={() => setPage(p => p + 1)}
-
-                    aria-label="Trang sau"
-
-                    endIcon={<AngleRightIcon className="size-4" aria-hidden />}
-
-                  >
-
-                    <span className="sr-only">Trang sau</span>
-
-                  </Button>
-
-                </div>
-
-              </div>
-
-            )}
-
+            <PaginationBar
+              page={page}
+              totalPages={pagination?.total_pages ?? 1}
+              total={pagination?.total ?? rows.length}
+              onPage={handlePage}
+            />
           </>
-
         )}
-
       </div>
     </>
-
   )
-
 }
-
