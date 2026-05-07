@@ -142,7 +142,7 @@ const AppSidebarStudent: React.FC = () => {
                 className={`mb-4 flex text-xs uppercase leading-[20px] text-gray-400 ${!isExpanded && !isHovered ? 'lg:justify-center' : 'justify-start'}`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  'Menu'
+                  'Điều hướng'
                 ) : (
                   <HorizontaLDots className="size-6" />
                 )}

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router'
+import { useState } from 'react'
+import { useNavigate, useLocation, Navigate } from 'react-router'
 import axios from 'axios'
 import { toast } from 'sonner'
 import { viApiError, viApiMessage } from '@/utils/viApiMessage'
@@ -41,14 +41,19 @@ export default function SignIn() {
   const login = useAuthStore(s => s.login)
   const user = useAuthStore(s => s.user)
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const hasHydrated = useAuthStore(s => s._hasHydrated)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      navigate(resolvePostLoginPath(user.role, from), { replace: true })
-    }
-  }, [isAuthenticated, navigate, user, from])
+  // Chờ hydration xong mới kiểm tra — tránh flash dashboard
+  if (!hasHydrated) {
+    return null
+  }
+
+  // Nếu đã đăng nhập rồi thì redirect thẳng, không render form
+  if (isAuthenticated && user) {
+    return <Navigate to={resolvePostLoginPath(user.role, from)} replace />
+  }
 
   const handleSignIn = async (email: string, password: string) => {
     setIsSubmitting(true)

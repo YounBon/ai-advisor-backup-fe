@@ -4,12 +4,17 @@ import { Navigate, Outlet } from 'react-router'
 const homeByRole: Record<string, string> = {
   STUDENT: '/student',
   ADVISOR: '/advisor',
-  FACULTY: '/',
-  ADMIN: '/',
+  FACULTY: '/dashboard',
+  ADMIN: '/dashboard',
 }
 
 const ProtectRoute = ({ allowedRoles = [] }: { allowedRoles: string[] }) => {
-  const { isAuthenticated, user } = useAuthStore()
+  const { isAuthenticated, user, _hasHydrated } = useAuthStore()
+
+  // Chờ Zustand persist hydrate xong mới quyết định redirect
+  if (!_hasHydrated) {
+    return null
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/signin" replace />

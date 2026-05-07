@@ -3,7 +3,6 @@ import RequireAuth from './components/auth/RequireAuth'
 import SignIn from './pages/AuthPages/SignIn'
 import NotFound from './pages/OtherPage/NotFound'
 import UserProfiles from './pages/UserProfiles'
-// Admin Pages
 import {
   MasterDataPage,
   AdvisorClassPage,
@@ -28,59 +27,67 @@ import AdvisorLayout from './layout/AdvisorLayout'
 import ProtectLayout from './layout/ProtectLayout'
 import { ScrollToTop } from './components/common/ScrollToTop'
 import ProtectRoute from './components/auth/ProtectRoute'
+import { useVerifyAuth } from './hooks/useVerifyAuth'
 
-export default function App() {
+/**
+ * AppRoutes phải nằm bên trong <Router> để dùng được hooks của react-router.
+ * useVerifyAuth gọi GET /auth/me khi app khởi động để verify token còn hợp lệ,
+ * tránh flash dashboard khi token cũ trong localStorage đã hết hạn.
+ */
+function AppRoutes() {
+  useVerifyAuth()
+
   return (
     <>
-      <Router>
-        <ScrollToTop />
-        <Routes>
-          <Route element={<RequireAuth />}>
-            {/* Sinh viên: layout riêng */}
-            <Route path="student" element={<ProtectRoute allowedRoles={['STUDENT']} />}>
-              <Route element={<ProtectLayout />}>
-                <Route index element={<DashboardPage />} />
-                <Route path="academic" element={<AcademicPage />} />
-                <Route path="feedback" element={<FeedbackPage />} />
-                <Route path="notifications" element={<StudentNotificationsPage />} />
-                <Route path="profile" element={<UserProfiles />} />
-              </Route>
-            </Route>
-
-            {/* ADVISOR */}
-            <Route path="advisor" element={<ProtectRoute allowedRoles={['ADVISOR']} />}>
-              <Route element={<AdvisorLayout />}>
-                <Route index element={<AdvisorDashboardPage />} />
-                <Route path="classes" element={<AdvisorClassPage />} />
-                <Route path="meetings" element={<AdvisorMeetingsPage />} />
-                <Route path="feedback" element={<AdvisorFeedbackPage />} />
-                <Route path="notifications" element={<AdvisorNotificationsPage />} />
-                <Route path="profile" element={<UserProfiles />} />
-              </Route>
-            </Route>
-
-            {/* FACULTY / ADMIN */}
-            <Route element={<ProtectRoute allowedRoles={['FACULTY', 'ADMIN']} />}>
-              <Route element={<AppLayout />}>
-                <Route path="dashboard" element={<Home />} />
-                <Route path="profile" element={<UserProfiles />} />
-                <Route path="master-data" element={<MasterDataPage />} />
-                <Route path="admin-users" element={<AdminUsersPage />} />
-              </Route>
+      <ScrollToTop />
+      <Routes>
+        <Route element={<RequireAuth />}>
+          <Route path="student" element={<ProtectRoute allowedRoles={['STUDENT']} />}>
+            <Route element={<ProtectLayout />}>
+              <Route index element={<DashboardPage />} />
+              <Route path="academic" element={<AcademicPage />} />
+              <Route path="feedback" element={<FeedbackPage />} />
+              <Route path="notifications" element={<StudentNotificationsPage />} />
+              <Route path="profile" element={<UserProfiles />} />
             </Route>
           </Route>
 
-          {/* Auth Layout */}
-          <Route path="/signin" element={<SignIn />} />
+          <Route path="advisor" element={<ProtectRoute allowedRoles={['ADVISOR']} />}>
+            <Route element={<AdvisorLayout />}>
+              <Route index element={<AdvisorDashboardPage />} />
+              <Route path="classes" element={<AdvisorClassPage />} />
+              <Route path="meetings" element={<AdvisorMeetingsPage />} />
+              <Route path="feedback" element={<AdvisorFeedbackPage />} />
+              <Route path="notifications" element={<AdvisorNotificationsPage />} />
+              <Route path="profile" element={<UserProfiles />} />
+            </Route>
+          </Route>
 
-          {/* Landing Page — trang mặc định */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/landing" element={<Navigate to="/" replace />} />
+          <Route element={<ProtectRoute allowedRoles={['FACULTY', 'ADMIN']} />}>
+            <Route element={<AppLayout />}>
+              <Route path="dashboard" element={<Home />} />
+              <Route path="profile" element={<UserProfiles />} />
+              <Route path="master-data" element={<MasterDataPage />} />
+              <Route path="admin-users" element={<AdminUsersPage />} />
+            </Route>
+          </Route>
+        </Route>
 
-          {/* Fallback Route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Router>
+        <Route path="/signin" element={<SignIn />} />
+
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/landing" element={<Navigate to="/" replace />} />
+
+        <Route path="*" element={<NotFound />} />
+      </Routes>
     </>
+  )
+}
+
+export default function App() {
+  return (
+    <Router>
+      <AppRoutes />
+    </Router>
   )
 }

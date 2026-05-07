@@ -2,9 +2,6 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import PageMeta from "@/components/common/PageMeta";
 
-// ============================================================
-// CSS VARIABLES & STYLES (inline trong component)
-// ============================================================
 const landingStyles = `
   :root {
     --red-primary: #E02020;
@@ -399,9 +396,6 @@ const landingStyles = `
   }
 `;
 
-// ============================================================
-// ICON COMPONENTS (SVG inline, không dùng ảnh ngoài)
-// ============================================================
 
 const ShieldIcon = () => (
     <img src="/images/logo/auth-logo.png" alt="AI-Advisor" width={32} height={32} style={{ objectFit: "contain" }} />
@@ -524,9 +518,6 @@ const QuoteIcon = () => (
     </svg>
 );
 
-// ============================================================
-// DATA
-// ============================================================
 
 const features = [
     {
@@ -649,10 +640,6 @@ const painPoints = [
     },
 ];
 
-// ============================================================
-// MAIN COMPONENT
-// ============================================================
-
 export default function LandingPage() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
@@ -671,13 +658,10 @@ export default function LandingPage() {
 
     return (
         <div className="landing-page">
-            {/* Inject styles */}
             <style>{landingStyles}</style>
             <PageMeta title="Trang chủ | AI-Advisor" description="Nền tảng AI hỗ trợ cố vấn học tập" />
 
-            {/* ====================================================
-          SECTION 1: NAVBAR
-      ==================================================== */}
+
             <nav className={`lp-navbar${scrolled ? " scrolled" : ""}`}>
                 <div
                     style={{
@@ -690,7 +674,6 @@ export default function LandingPage() {
                         height: "68px",
                     }}
                 >
-                    {/* Logo */}
                     <Link
                         to="/"
                         style={{
@@ -713,7 +696,6 @@ export default function LandingPage() {
                         </span>
                     </Link>
 
-                    {/* Desktop nav links */}
                     <div
                         style={{
                             display: "flex",
@@ -752,24 +734,21 @@ export default function LandingPage() {
                         </button>
                     </div>
 
-                    {/* CTA + Mobile toggle */}
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                         <Link to="/signin" className="btn-primary" style={{ padding: "10px 22px", fontSize: "14px" }}>
                             Đăng nhập
                         </Link>
-                        {/* Mobile menu button */}
                         <button
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                             style={{ background: "none", border: "none", cursor: "pointer", padding: "4px" }}
                             className="md:hidden"
-                            aria-label="Toggle menu"
+                            aria-label="Mở/đóng menu"
                         >
                             {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
                         </button>
                     </div>
                 </div>
 
-                {/* Mobile menu */}
                 <div className={`mobile-menu${mobileMenuOpen ? " open" : ""}`}>
                     {[
                         { label: "Tính năng", id: "features" },
@@ -800,9 +779,7 @@ export default function LandingPage() {
                 </div>
             </nav>
 
-            {/* ====================================================
-          SECTION 2: HERO
-      ==================================================== */}
+
             <section
                 style={{
                     background: "linear-gradient(180deg, #FFFFFF 0%, #FFF8F8 100%)",
@@ -821,7 +798,6 @@ export default function LandingPage() {
                     }}
                     className="hero-grid"
                 >
-                    {/* Left: Text content */}
                     <div>
                         <div className="badge">
                             <span className="pulse-dot" />
@@ -855,7 +831,6 @@ export default function LandingPage() {
                             nhận cảnh báo tức thời và can thiệp đúng lúc.
                         </p>
 
-                        {/* CTA buttons */}
                         <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "48px" }}>
                             <Link to="/signin" className="btn-primary">
                                 Bắt đầu ngay <ArrowRightIcon />
@@ -868,7 +843,6 @@ export default function LandingPage() {
                             </button>
                         </div>
 
-                        {/* Social proof */}
                         <div
                             style={{
                                 display: "flex",
@@ -893,15 +867,8 @@ export default function LandingPage() {
                         </div>
                     </div>
 
-                    {/* Right: Hero visual placeholder */}
-                    {/*
-            PLACEHOLDER: Dashboard preview mockup
-            Thay thế bằng ảnh chụp màn hình dashboard thực tế hoặc video demo
-            Kích thước đề xuất: 600x440px
-          */}
                     <div className="hero-placeholder">
                         <div style={{ position: "relative", zIndex: 1, width: "100%", padding: "24px" }}>
-                            {/* Mock dashboard header */}
                             <div
                                 style={{
                                     display: "flex",
@@ -935,7 +902,6 @@ export default function LandingPage() {
                                 </div>
                             </div>
 
-                            {/* Mock student rows */}
                             <div className="mock-dashboard">
                                 {[
                                     { name: "Nguyễn Văn A", gpa: "1.8", risk: "high", label: "Cao" },
@@ -984,7 +950,6 @@ export default function LandingPage() {
                                     </div>
                                 ))}
 
-                                {/* AI analysis bar */}
                                 <div
                                     style={{
                                         marginTop: "12px",
@@ -1027,7 +992,6 @@ export default function LandingPage() {
                     </div>
                 </div>
 
-                {/* Responsive hero grid style */}
                 <style>{`
           @media (max-width: 768px) {
             .hero-grid {
@@ -1038,9 +1002,6 @@ export default function LandingPage() {
         `}</style>
             </section>
 
-            {/* ====================================================
-          SECTION 3: VẤN ĐỀ & GIẢI PHÁP
-      ==================================================== */}
             <section style={{ background: "#ffffff", padding: "80px 0" }}>
                 <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 24px" }}>
                     <div
@@ -1052,7 +1013,6 @@ export default function LandingPage() {
                         }}
                         className="problem-grid"
                     >
-                        {/* Left: Pain points */}
                         <div>
                             <div className="section-divider section-divider-left" />
                             <p style={{ fontSize: "13px", fontWeight: "600", color: "#E02020", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "1px" }}>
@@ -1090,7 +1050,6 @@ export default function LandingPage() {
                             ))}
                         </div>
 
-                        {/* Right: Solution */}
                         <div
                             style={{
                                 background: "linear-gradient(135deg, #111111 0%, #1A1A1A 100%)",
@@ -1154,12 +1113,8 @@ export default function LandingPage() {
         `}</style>
             </section>
 
-            {/* ====================================================
-          SECTION 4: TÍNH NĂNG CHÍNH
-      ==================================================== */}
             <section id="features" style={{ background: "#F9FAFB", padding: "80px 0" }}>
                 <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 24px" }}>
-                    {/* Section header */}
                     <div style={{ textAlign: "center", marginBottom: "56px" }}>
                         <div className="section-divider" />
                         <p style={{ fontSize: "13px", fontWeight: "600", color: "#E02020", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "1px" }}>
@@ -1181,7 +1136,6 @@ export default function LandingPage() {
                         </p>
                     </div>
 
-                    {/* Feature grid */}
                     <div
                         style={{
                             display: "grid",
@@ -1233,12 +1187,8 @@ export default function LandingPage() {
         `}</style>
             </section>
 
-            {/* ====================================================
-          SECTION 5: QUY TRÌNH (3 BƯỚC)
-      ==================================================== */}
             <section id="how-it-works" style={{ background: "#111111", padding: "80px 0" }}>
                 <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 24px" }}>
-                    {/* Section header */}
                     <div style={{ textAlign: "center", marginBottom: "56px" }}>
                         <div className="section-divider" />
                         <p style={{ fontSize: "13px", fontWeight: "600", color: "#E02020", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "1px" }}>
@@ -1260,7 +1210,6 @@ export default function LandingPage() {
                         </p>
                     </div>
 
-                    {/* Steps grid */}
                     <div
                         style={{
                             display: "grid",
@@ -1272,7 +1221,6 @@ export default function LandingPage() {
                     >
                         {steps.map((step, index) => (
                             <div key={step.number} className="step-card">
-                                {/* Connector line (desktop only) */}
                                 {index < steps.length - 1 && (
                                     <div
                                         style={{
@@ -1336,12 +1284,8 @@ export default function LandingPage() {
         `}</style>
             </section>
 
-            {/* ====================================================
-          SECTION 6: TESTIMONIALS
-      ==================================================== */}
             <section id="testimonials" style={{ background: "#ffffff", padding: "80px 0" }}>
                 <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 24px" }}>
-                    {/* Section header */}
                     <div style={{ textAlign: "center", marginBottom: "56px" }}>
                         <div className="section-divider" />
                         <p style={{ fontSize: "13px", fontWeight: "600", color: "#E02020", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "1px" }}>
@@ -1363,7 +1307,6 @@ export default function LandingPage() {
                         </p>
                     </div>
 
-                    {/* Testimonials grid */}
                     <div
                         style={{
                             display: "grid",
@@ -1374,19 +1317,16 @@ export default function LandingPage() {
                     >
                         {testimonials.map((t) => (
                             <div key={t.name} className="testimonial-card">
-                                {/* Quote icon */}
                                 <div style={{ marginBottom: "20px" }}>
                                     <QuoteIcon />
                                 </div>
 
-                                {/* Stars */}
                                 <div style={{ display: "flex", gap: "4px", marginBottom: "16px" }}>
                                     {Array.from({ length: t.stars }).map((_, i) => (
                                         <StarIcon key={i} />
                                     ))}
                                 </div>
 
-                                {/* Quote text */}
                                 <p
                                     style={{
                                         fontSize: "15px",
@@ -1399,12 +1339,8 @@ export default function LandingPage() {
                                     "{t.quote}"
                                 </p>
 
-                                {/* Author */}
                                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                    {/*
-                    PLACEHOLDER: Avatar ảnh thực tế
-                    Thay thế div tròn bằng <img> khi có ảnh thật
-                  */}
+
                                     <div className="avatar-circle">{t.initials}</div>
                                     <div>
                                         <div style={{ fontWeight: "700", fontSize: "14px", color: "#111111" }}>
@@ -1432,9 +1368,6 @@ export default function LandingPage() {
         `}</style>
             </section>
 
-            {/* ====================================================
-          SECTION 7: STATS
-      ==================================================== */}
             <section
                 style={{
                     background: "linear-gradient(135deg, #E02020 0%, #B01818 100%)",
@@ -1497,9 +1430,6 @@ export default function LandingPage() {
         `}</style>
             </section>
 
-            {/* ====================================================
-          SECTION 8: CTA CUỐI TRANG
-      ==================================================== */}
             <section id="contact" className="cta-section" style={{ padding: "100px 0" }}>
                 <div
                     style={{
@@ -1509,7 +1439,6 @@ export default function LandingPage() {
                         textAlign: "center",
                     }}
                 >
-                    {/* Decorative icon */}
                     <div
                         style={{
                             width: "72px",
@@ -1578,7 +1507,6 @@ export default function LandingPage() {
                         </button>
                     </div>
 
-                    {/* Trust badges */}
                     <div
                         style={{
                             display: "flex",
@@ -1605,12 +1533,9 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ====================================================
-          SECTION 9: FOOTER
-      ==================================================== */}
+
             <footer className="lp-footer" style={{ padding: "48px 0 32px" }}>
                 <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 24px" }}>
-                    {/* Top row */}
                     <div
                         style={{
                             display: "grid",
@@ -1622,7 +1547,6 @@ export default function LandingPage() {
                         }}
                         className="footer-grid"
                     >
-                        {/* Brand */}
                         <div>
                             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
                                 <ShieldIcon />
@@ -1635,7 +1559,6 @@ export default function LandingPage() {
                             </p>
                         </div>
 
-                        {/* Links col 1 */}
                         <div>
                             <div style={{ fontSize: "13px", fontWeight: "700", color: "#ffffff", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                                 Sản phẩm
@@ -1663,7 +1586,6 @@ export default function LandingPage() {
                             ))}
                         </div>
 
-                        {/* Links col 2 */}
                         <div>
                             <div style={{ fontSize: "13px", fontWeight: "700", color: "#ffffff", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                                 Hỗ trợ
@@ -1685,7 +1607,6 @@ export default function LandingPage() {
                         </div>
                     </div>
 
-                    {/* Bottom row */}
                     <div
                         style={{
                             display: "flex",

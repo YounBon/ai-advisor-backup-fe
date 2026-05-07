@@ -3,6 +3,7 @@ import { Outlet } from 'react-router'
 import AppHeader from './AppHeader'
 import Backdrop from './Backdrop'
 import AppSidebarStudent from './AppSidebarStudent'
+import ChatbotWidget from '../components/Student/Chatbot/ChatbotWidget'
 
 const ProtectLayoutContent: React.FC = () => {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar()
@@ -29,6 +30,8 @@ const ProtectLayoutContent: React.FC = () => {
           </p>
         </footer>
       </div>
+      {/* Chatbot floating widget — hiển thị trên tất cả trang student */}
+      <ChatbotWidget />
     </div>
   )
 }

@@ -15,6 +15,12 @@ class AuthService {
     const response = await this.api.post('/auth/logout', body)
     return response.data
   }
+
+  /** Verify token còn hợp lệ không — dùng khi app khởi động */
+  me = async (): Promise<ApiResponse> => {
+    const response = await this.api.get('/auth/me')
+    return response.data
+  }
 }
 
 export const authService = new AuthService()

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { viApiMessage } from '@/utils/viApiMessage'
 import PageMeta from '@/components/common/PageMeta'
@@ -31,6 +31,14 @@ type MajorItem = {
   _id: string
   major_code: string
   major_name: string
+}
+
+type TermItem = {
+  _id: string
+  term_code: string
+  term_name: string
+  academic_year: string
+  status: string
 }
 
 type ListUser = {
@@ -194,6 +202,14 @@ export default function AdminUsersPage() {
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [rows, setRows] = useState<ListUser[]>([])
 
+  // ── Filter & search state ──
+  const [activeTerm, setActiveTerm] = useState<TermItem | null>(null)
+  const [deptFilterList, setDeptFilterList] = useState<DepartmentItem[]>([])
+  const [selectedDeptId, setSelectedDeptId] = useState<string>('')
+  const [searchInput, setSearchInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailRows, setDetailRows] = useState<[string, string][]>([])
   const [detailTitle, setDetailTitle] = useState('')
@@ -214,10 +230,59 @@ export default function AdminUsersPage() {
 
   const roleFilter = useMemo(() => (tab === 'advisor' ? 'ADVISOR' : 'STUDENT'), [tab])
 
+  // Load active term + department list once on mount
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const [termRes, deptRes] = await Promise.all([
+          masterDataService.getActiveTerm(),
+          masterDataService.getDepartmentsList({ page: 1, limit: 100 }),
+        ])
+        setActiveTerm((termRes.data as TermItem | null) ?? null)
+        const deptData = deptRes.data as { items: DepartmentItem[] }
+        const depts = deptData.items ?? []
+        console.log('[AdminUsers] Loaded departments:', depts)
+        setDeptFilterList(depts)
+        // Mặc định chọn khoa đầu tiên
+        if (depts.length > 0 && !selectedDeptId) {
+          console.log('[AdminUsers] Auto-selecting first dept:', depts[0])
+          setSelectedDeptId(depts[0]._id)
+        }
+      } catch (err) {
+        console.error('[AdminUsers] Failed to load departments:', err)
+        toast.error('Không thể tải danh sách khoa')
+      }
+    }
+    void init()
+  }, [])
+
+  // Debounce search input → searchQuery
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value)
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    searchDebounceRef.current = setTimeout(() => {
+      setSearchQuery(value.trim())
+      setPage(1)
+    }, 400)
+  }
+
   const loadList = useCallback(async () => {
+    // Bắt buộc phải chọn khoa
+    if (!selectedDeptId) {
+      setRows([])
+      setPagination(null)
+      return
+    }
     setLoading(true)
     try {
-      const res = await userService.getUsers({ role: roleFilter, page, limit })
+      const body: Record<string, unknown> = {
+        role: roleFilter,
+        page,
+        limit,
+        department_id: selectedDeptId
+      }
+      if (searchQuery) body.search = searchQuery
+      const res = await userService.getUsers(body)
       const data = res.data as { items: ListUser[]; pagination: Pagination }
       setRows(data.items ?? [])
       setPagination(data.pagination ?? null)
@@ -226,10 +291,12 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [roleFilter, page])
+  }, [roleFilter, page, selectedDeptId, searchQuery])
 
   useEffect(() => {
     setPage(1)
+    setSearchInput('')
+    setSearchQuery('')
   }, [tab])
 
   useEffect(() => {
@@ -423,17 +490,26 @@ export default function AdminUsersPage() {
           <h1 className="mt-0.5 text-2xl font-bold text-[#111111]">Quản lý người dùng</h1>
           <p className="mt-0.5 text-sm text-[#6B7280]">Quản lý tài khoản cố vấn học tập và sinh viên trong hệ thống</p>
         </div>
-        {pagination && (
-          <div className="flex items-center gap-2 rounded-xl border border-[#F0F0F0] bg-[#F9FAFB] px-4 py-2.5">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="9" cy="7" r="4" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className="text-sm font-semibold text-[#111111]">{pagination.total}</span>
-            <span className="text-xs text-[#6B7280]">{tab === 'advisor' ? 'cố vấn' : 'sinh viên'}</span>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Active term badge */}
+          {activeTerm && (
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+              <span className="size-2 rounded-full bg-emerald-500" />
+              <span className="text-xs font-semibold text-emerald-700">{activeTerm.term_name}</span>
+            </div>
+          )}
+          {pagination && (
+            <div className="flex items-center gap-2 rounded-xl border border-[#F0F0F0] bg-[#F9FAFB] px-4 py-2.5">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="9" cy="7" r="4" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="text-sm font-semibold text-[#111111]">{pagination.total}</span>
+              <span className="text-xs text-[#6B7280]">{tab === 'advisor' ? 'cố vấn' : 'sinh viên'}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Tabs + nội dung ── */}
@@ -476,8 +552,87 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
+        {/* ── Filter bar: search + khoa ── */}
+        <div className="flex flex-wrap items-center gap-3 border-b border-[#F0F0F0] px-5 py-3">
+          {/* Searchbar */}
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <svg
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]"
+              width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden
+            >
+              <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <input
+              type="text"
+              value={searchInput}
+              onChange={e => handleSearchChange(e.target.value)}
+              placeholder={
+                tab === 'advisor'
+                  ? 'Tìm theo tên hoặc mã cán bộ...'
+                  : 'Tìm theo tên hoặc mã sinh viên...'
+              }
+              className="w-full rounded-xl border border-[#E0E0E0] bg-white py-2 pl-9 pr-9 text-sm text-[#111111] placeholder-[#9CA3AF] outline-none transition-colors focus:border-[#E02020] focus:ring-2 focus:ring-[#E02020]/10"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => handleSearchChange('')}
+                aria-label="Xóa tìm kiếm"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#444444]"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Dropdown lọc theo khoa — bắt buộc chọn, không có "Tất cả" */}
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 text-[#6B7280]" aria-hidden>
+              <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <select
+              value={selectedDeptId}
+              onChange={e => { setSelectedDeptId(e.target.value); setPage(1) }}
+              className="rounded-xl border border-[#E0E0E0] bg-white py-2 pl-3 pr-8 text-sm text-[#444444] outline-none transition-colors focus:border-[#E02020] focus:ring-2 focus:ring-[#E02020]/10"
+              disabled={deptFilterList.length === 0}
+            >
+              {deptFilterList.length === 0 ? (
+                <option value="">Không có khoa nào</option>
+              ) : (
+                deptFilterList.map(d => (
+                  <option key={d._id} value={d._id}>
+                    {d.department_code} — {d.department_name}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {/* Tổng kết quả */}
+          {pagination && selectedDeptId && (
+            <span className="ml-auto text-xs text-[#6B7280]">
+              <span className="font-semibold text-[#111111]">{pagination.total}</span>
+              {' '}{tab === 'advisor' ? 'cố vấn' : 'sinh viên'}
+              {searchQuery && <span className="text-[#E02020]"> · đang lọc</span>}
+            </span>
+          )}
+        </div>
+
         {/* Nội dung bảng */}
-        {loading ? (
+        {!selectedDeptId ? (
+          <div className="flex min-h-[300px] flex-col items-center justify-center gap-3 p-8 text-center">
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-[#FFF0F0]">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M2 4h12M4 8h8M6 12h4" stroke="#E02020" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </div>
+            <p className="text-sm font-semibold text-[#111111]">Vui lòng chọn khoa</p>
+            <p className="text-xs text-[#6B7280]">Chọn khoa từ dropdown bên trên để xem danh sách {tab === 'advisor' ? 'cố vấn' : 'sinh viên'}</p>
+          </div>
+        ) : loading ? (
           <div className="space-y-2 p-5">
             {[1, 2, 3, 4, 5].map(i => (
               <div key={i} className="h-11 animate-pulse rounded-xl bg-[#F9FAFB]" />
