@@ -6,6 +6,7 @@ import {
   HorizontaLDots,
   TableIcon,
   UserCircleIcon,
+  GroupIcon,
 } from '../icons'
 import { useSidebar } from '../context/SidebarContext'
 import useAuthStore from '../stores/authStore'
@@ -32,7 +33,12 @@ const navItems: NavItem[] = [
     name: 'Quản lý người dùng',
     icon: <UserCircleIcon />,
     path: '/admin-users',
-  }
+  },
+  {
+    name: 'Quản lý lớp cố vấn',
+    icon: <GroupIcon />,
+    path: '/admin-advisor-classes',
+  },
 ]
 
 // const othersItems: NavItem[] = [

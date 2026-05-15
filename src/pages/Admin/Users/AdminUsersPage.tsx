@@ -117,6 +117,19 @@ function extractOrgName(
   const code = typeof item[keyCode] === 'string' ? item[keyCode] : ''
   const name = typeof item[keyName] === 'string' ? item[keyName] : ''
   return [code, name].filter(Boolean).join(' — ')
+}
+
+// Chuyển chức danh viết tắt → đầy đủ
+function expandAdvisorTitle(raw: string | null | undefined): string {
+  if (!raw) return '—'
+  return raw
+    .replace(/\bThS\b\.?/gi, 'Thạc sĩ')
+    .replace(/\bTS\b\.?/gi, 'Tiến sĩ')
+    .replace(/\bPGS\b\.?/gi, 'Phó Giáo sư')
+    .replace(/\bGS\b\.?/gi, 'Giáo sư')
+    .replace(/\bCN\b\.?/gi, 'Cử nhân')
+    .replace(/\bKS\b\.?/gi, 'Kỹ sư')
+    .trim() || '—'
 }// ─── Pagination Bar ───────────────────────────────────────────────────────────
 
 function PaginationBar({
@@ -214,6 +227,8 @@ export default function AdminUsersPage() {
   const [detailRows, setDetailRows] = useState<[string, string][]>([])
   const [detailTitle, setDetailTitle] = useState('')
   const [detailLoading, setDetailLoading] = useState(false)
+
+  const [lockingId, setLockingId] = useState<string | null>(null)
 
   const [createOpen, setCreateOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -353,6 +368,10 @@ export default function AdminUsersPage() {
       toast.error('Mã sinh viên là bắt buộc')
       return
     }
+    if (tab === 'advisor' && !createForm.staffCode.trim()) {
+      toast.error('Mã cán bộ là bắt buộc')
+      return
+    }
     const usernameTrim = createForm.username.trim()
     const body: Record<string, unknown> = {
       profile: { full_name: createForm.fullName.trim() },
@@ -363,11 +382,9 @@ export default function AdminUsersPage() {
     }
     if (usernameTrim.length >= 3) body.username = usernameTrim
     if (tab === 'advisor') {
-      if (createForm.staffCode.trim() || createForm.advisorTitle.trim()) {
-        body.advisor_info = {
-          ...(createForm.staffCode.trim() ? { staff_code: createForm.staffCode.trim() } : {}),
-          ...(createForm.advisorTitle.trim() ? { title: createForm.advisorTitle.trim() } : {}),
-        }
+      body.advisor_info = {
+        staff_code: createForm.staffCode.trim(),
+        ...(createForm.advisorTitle.trim() ? { title: createForm.advisorTitle.trim() } : {}),
       }
     } else {
       body.student_info = { student_code: createForm.studentCode.trim() }
@@ -383,6 +400,25 @@ export default function AdminUsersPage() {
       toast.error('Đã có lỗi xảy ra')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleToggleLock = async (row: ListUser) => {
+    const isLocked = row.status === 'LOCKED'
+    const action = isLocked ? 'mở khóa' : 'khóa'
+    if (!confirm(`Bạn có chắc muốn ${action} tài khoản "${row.full_name || row.profile?.full_name || row.username}"?`)) return
+
+    setLockingId(row._id)
+    try {
+      const res = isLocked
+        ? await userService.unlockUser(row._id)
+        : await userService.lockUser(row._id)
+      toast.success(viApiMessage(res.message, `${isLocked ? 'Mở khóa' : 'Khóa'} tài khoản thành công`))
+      void loadList()
+    } catch {
+      toast.error('Đã có lỗi xảy ra')
+    } finally {
+      setLockingId(null)
     }
   }
 
@@ -413,14 +449,14 @@ export default function AdminUsersPage() {
         ['Địa chỉ email', detail.email],
         ['Trạng thái', detail.status === 'ACTIVE' ? 'Đang hoạt động' : 'Không hoạt động'],
         ['Khoa / Đơn vị', departmentDisplay],
-        ['Ngành học', majorDisplay],
       ]
       if (detail.role === 'STUDENT') {
+        lines.push(['Ngành học', majorDisplay])
         lines.push(['Mã sinh viên', detail.student_info?.student_code ?? '—'])
       }
       if (detail.role === 'ADVISOR') {
         lines.push(['Mã cán bộ', detail.advisor_info?.staff_code ?? '—'])
-        lines.push(['Chức danh', detail.advisor_info?.title ?? '—'])
+        lines.push(['Chức danh', expandAdvisorTitle(detail.advisor_info?.title)])
       }
       setDetailRows(lines)
     } catch {
@@ -433,13 +469,17 @@ export default function AdminUsersPage() {
           normalizeRefId(row.org?.department_id) ||
           '—',
         ],
-        [
+        ...(row.role === 'STUDENT' ? [[
           'Ngành học',
           row.major_name ||
           extractOrgName(row.org?.major_id, 'major_code', 'major_name') ||
           normalizeRefId(row.org?.major_id) ||
           '—',
-        ],
+        ] as [string, string]] : []),
+        ...(row.role === 'ADVISOR' ? [
+          ['Mã cán bộ', row.advisor_info?.staff_code ?? '—'] as [string, string],
+          ['Chức danh', expandAdvisorTitle(row.advisor_info?.title)] as [string, string],
+        ] : []),
       ])
       toast.error('Đã có lỗi xảy ra')
     } finally {
@@ -690,17 +730,38 @@ export default function AdminUsersPage() {
                             {row.advisor_info?.title ?? '—'}
                           </TableCell>
                           <TableCell className="px-4 py-3.5">
-                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${row.status === 'ACTIVE' ? 'bg-[#F0FDF4] text-emerald-700' : 'bg-[#F9FAFB] text-[#6B7280]'
+                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${row.status === 'ACTIVE'
+                              ? 'bg-[#F0FDF4] text-emerald-700'
+                              : row.status === 'LOCKED'
+                                ? 'bg-[#FFF0F0] text-[#E02020]'
+                                : 'bg-[#F9FAFB] text-[#6B7280]'
                               }`}>
-                              {row.status === 'ACTIVE' ? 'Đang hoạt động' : 'Không hoạt động'}
+                              {row.status === 'ACTIVE' ? 'Đang hoạt động' : row.status === 'LOCKED' ? 'Đã khóa' : 'Không hoạt động'}
                             </span>
                           </TableCell>
                           <TableCell className="px-4 py-3.5 text-right">
-                            <Button type="button" size="sm" variant="outline"
-                              className="border-[#E0E0E0] text-[#444444] hover:border-[#E02020]/40 hover:text-[#E02020]"
-                              onClick={() => void openDetail(row)}>
-                              Chi tiết
-                            </Button>
+                            <div className="flex items-center justify-end gap-2">
+                              <Button type="button" size="sm" variant="outline"
+                                className="border-[#E0E0E0] text-[#444444] hover:border-[#E02020]/40 hover:text-[#E02020]"
+                                onClick={() => void openDetail(row)}>
+                                Chi tiết
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={lockingId === row._id}
+                                className={row.status === 'LOCKED'
+                                  ? 'border-emerald-300 text-emerald-700 hover:border-emerald-500 hover:bg-emerald-50'
+                                  : 'border-orange-300 text-orange-600 hover:border-orange-500 hover:bg-orange-50'
+                                }
+                                onClick={() => void handleToggleLock(row)}
+                              >
+                                {lockingId === row._id
+                                  ? '...'
+                                  : row.status === 'LOCKED' ? 'Mở khóa' : 'Khóa'}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -752,17 +813,38 @@ export default function AdminUsersPage() {
                             {row.student_info?.student_code ?? '—'}
                           </TableCell>
                           <TableCell className="px-4 py-3.5">
-                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${row.status === 'ACTIVE' ? 'bg-[#F0FDF4] text-emerald-700' : 'bg-[#F9FAFB] text-[#6B7280]'
+                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${row.status === 'ACTIVE'
+                              ? 'bg-[#F0FDF4] text-emerald-700'
+                              : row.status === 'LOCKED'
+                                ? 'bg-[#FFF0F0] text-[#E02020]'
+                                : 'bg-[#F9FAFB] text-[#6B7280]'
                               }`}>
-                              {row.status === 'ACTIVE' ? 'Đang hoạt động' : 'Không hoạt động'}
+                              {row.status === 'ACTIVE' ? 'Đang hoạt động' : row.status === 'LOCKED' ? 'Đã khóa' : 'Không hoạt động'}
                             </span>
                           </TableCell>
                           <TableCell className="px-4 py-3.5 text-right">
-                            <Button type="button" size="sm" variant="outline"
-                              className="border-[#E0E0E0] text-[#444444] hover:border-[#E02020]/40 hover:text-[#E02020]"
-                              onClick={() => void openDetail(row)}>
-                              Chi tiết
-                            </Button>
+                            <div className="flex items-center justify-end gap-2">
+                              <Button type="button" size="sm" variant="outline"
+                                className="border-[#E0E0E0] text-[#444444] hover:border-[#E02020]/40 hover:text-[#E02020]"
+                                onClick={() => void openDetail(row)}>
+                                Chi tiết
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={lockingId === row._id}
+                                className={row.status === 'LOCKED'
+                                  ? 'border-emerald-300 text-emerald-700 hover:border-emerald-500 hover:bg-emerald-50'
+                                  : 'border-orange-300 text-orange-600 hover:border-orange-500 hover:bg-orange-50'
+                                }
+                                onClick={() => void handleToggleLock(row)}
+                              >
+                                {lockingId === row._id
+                                  ? '...'
+                                  : row.status === 'LOCKED' ? 'Mở khóa' : 'Khóa'}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -866,7 +948,7 @@ export default function AdminUsersPage() {
             ) : (
               <>
                 <div>
-                  <Label htmlFor="u-staff">Mã cán bộ <span className="text-xs font-normal text-[#6B7280]">(không bắt buộc)</span></Label>
+                  <Label htmlFor="u-staff">Mã cán bộ <span className="text-[#E02020]">*</span></Label>
                   <InputField id="u-staff" placeholder="Nhập mã cán bộ"
                     value={createForm.staffCode} onChange={e => setCreateFormField('staffCode', e.target.value)} disabled={saving} />
                 </div>
@@ -885,7 +967,7 @@ export default function AdminUsersPage() {
                 onChange={v => void onDeptChange(v)} defaultValue={createForm.deptId} />
             </div>
             <div>
-              <Label>Ngành học <span className="text-[#E02020]">*</span></Label>
+              <Label>Ngành đào tạo <span className="text-[#E02020]">*</span></Label>
               <Select
                 key={`maj-${createForm.deptId}-${majorPicklist.length}`}
                 options={majorOptions}

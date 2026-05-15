@@ -14,29 +14,35 @@ class UserService {
     return response.data
   }
 
-  /** POST /users/info — chi tiết user (không mật khẩu), ADVISOR / FACULTY / ADMIN */
   getInfoUser = async (body: { user_id: string }): Promise<ApiResponse> => {
     const response = await this.api.post('/users/info', body)
     return response.data
   }
 
-  /** POST /users/me — текущий пользователь по JWT (все роли) */
   getMe = async (): Promise<ApiResponse<User>> => {
     const response = await this.api.post('/users/me', {})
     return response.data
   }
 
-  /** POST /users/me/change-password */
   changePassword = async (body: { old_password: string; new_password: string }): Promise<ApiResponse> => {
     const response = await this.api.post('/users/me/change-password', body)
     return response.data
   }
 
-  /** POST /users/me/update — обновить профиль (full_name, phone, address) */
   updateMyProfile = async (body: {
     profile: { full_name?: string; phone?: string; address?: string }
   }): Promise<ApiResponse<User>> => {
     const response = await this.api.post('/users/me/update', body)
+    return response.data
+  }
+
+  lockUser = async (userId: string): Promise<ApiResponse> => {
+    const response = await this.api.patch(`/users/${userId}/lock`)
+    return response.data
+  }
+
+  unlockUser = async (userId: string): Promise<ApiResponse> => {
+    const response = await this.api.patch(`/users/${userId}/unlock`)
     return response.data
   }
 }

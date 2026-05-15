@@ -172,7 +172,6 @@ export default function UserProfiles() {
         description="Quản lý thông tin cá nhân và bảo mật tài khoản"
       />
 
-      {/* HERO */}
       <section className="relative mb-8 overflow-hidden rounded-2xl border border-[#E02020]/20 bg-gradient-to-br from-[#FFF0F0] via-white to-rose-50/40 p-5 shadow-[0_12px_40px_-14px_rgba(224,32,32,0.2)] ring-1 ring-[#E02020]/10 sm:p-6">
         <div className="pointer-events-none absolute -right-14 -top-16 size-44 rounded-full bg-[#E02020]/10 blur-3xl" aria-hidden />
         <div className="relative flex flex-wrap items-center gap-5">
@@ -204,7 +203,6 @@ export default function UserProfiles() {
       ) : (
         <div className="space-y-5">
 
-          {/* Thông tin cá nhân */}
           <div className="rounded-2xl border border-[#F0F0F0] bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] dark:border-gray-800 dark:bg-gray-900/50 sm:p-6">
             <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-4 dark:border-gray-800">
               <h2 className="text-base font-bold text-gray-900 dark:text-white/90">Thông tin cá nhân</h2>
@@ -225,7 +223,6 @@ export default function UserProfiles() {
             </div>
           </div>
 
-          {/* Thông tin học vụ — student only */}
           {isStudent && (
             <div className="rounded-2xl border border-[#F0F0F0] bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] dark:border-gray-800 dark:bg-gray-900/50 sm:p-6">
               <h2 className="mb-5 border-b border-gray-100 pb-4 text-base font-bold text-gray-900 dark:border-gray-800 dark:text-white/90">Thông tin học vụ</h2>
@@ -239,7 +236,6 @@ export default function UserProfiles() {
             </div>
           )}
 
-          {/* Thông tin cố vấn — advisor only */}
           {isAdvisor && (
             <div className="rounded-2xl border border-[#F0F0F0] bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] dark:border-gray-800 dark:bg-gray-900/50 sm:p-6">
               <h2 className="mb-5 border-b border-gray-100 pb-4 text-base font-bold text-gray-900 dark:border-gray-800 dark:text-white/90">Thông tin cố vấn</h2>
@@ -251,7 +247,6 @@ export default function UserProfiles() {
             </div>
           )}
 
-          {/* Bảo mật */}
           <div className="rounded-2xl border border-[#F0F0F0] bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] dark:border-gray-800 dark:bg-gray-900/50 sm:p-6">
             <h2 className="mb-5 border-b border-gray-100 pb-4 text-base font-bold text-gray-900 dark:border-gray-800 dark:text-white/90">Bảo mật</h2>
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -270,7 +265,6 @@ export default function UserProfiles() {
         </div>
       )}
 
-      {/* MODAL CHỈNH SỬA */}
       {editOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center">
           <div className="absolute inset-0 bg-[#1E1E1E]/70" onClick={() => !saving && setEditOpen(false)} />
@@ -323,7 +317,6 @@ export default function UserProfiles() {
         </div>
       )}
 
-      {/* MODAL ĐỔI MẬT KHẨU */}
       {pwOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center">
           <div className="absolute inset-0 bg-[#1E1E1E]/70" onClick={() => !pwSaving && setPwOpen(false)} />
@@ -333,7 +326,6 @@ export default function UserProfiles() {
               <p className="mt-0.5 text-xs text-gray-500">Mật khẩu mới tối thiểu 6 ký tự</p>
             </div>
             <div className="space-y-4 p-6">
-              {/* Mật khẩu hiện tại */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Mật khẩu hiện tại</label>
                 <div className="relative">
@@ -346,7 +338,6 @@ export default function UserProfiles() {
                   </button>
                 </div>
               </div>
-              {/* Mật khẩu mới */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Mật khẩu mới</label>
                 <div className="relative">
@@ -359,7 +350,6 @@ export default function UserProfiles() {
                   </button>
                 </div>
               </div>
-              {/* Xác nhận mật khẩu mới */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Xác nhận mật khẩu mới</label>
                 <div className="relative">

@@ -6,6 +6,7 @@ import UserProfiles from './pages/UserProfiles'
 import {
   MasterDataPage,
   AdvisorClassPage,
+  AdminAdvisorClassPage,
   AdminUsersPage,
   Home,
 } from './pages/Admin'
@@ -69,6 +70,7 @@ function AppRoutes() {
               <Route path="profile" element={<UserProfiles />} />
               <Route path="master-data" element={<MasterDataPage />} />
               <Route path="admin-users" element={<AdminUsersPage />} />
+              <Route path="admin-advisor-classes" element={<AdminAdvisorClassPage />} />
             </Route>
           </Route>
         </Route>

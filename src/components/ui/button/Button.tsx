@@ -1,15 +1,15 @@
 import { ReactNode } from 'react'
 
 interface ButtonProps {
-  children?: ReactNode // Button text or content
+  children?: ReactNode 
   type?: 'button' | 'submit' | 'reset'
-  size?: 'xs' | 'sm' | 'md' // Button size
-  variant?: 'primary' | 'outline' | 'ghost' | 'danger' // Button variant
-  startIcon?: ReactNode // Icon before the text
-  endIcon?: ReactNode // Icon after the text
-  onClick?: () => void // Click handler
-  disabled?: boolean // Disabled state
-  className?: string // Disabled state
+  size?: 'xs' | 'sm' | 'md' 
+  variant?: 'primary' | 'outline' | 'ghost' | 'danger' 
+  startIcon?: ReactNode 
+  endIcon?: ReactNode 
+  onClick?: () => void 
+  disabled?: boolean 
+  className?: string 
   'aria-label'?: string
 }
 
@@ -32,7 +32,6 @@ const Button: React.FC<ButtonProps> = ({
     md: 'gap-2.5 px-6 py-4 text-[15px] font-bold tracking-tight',
   }
 
-  // Variant Classes — primary: CTA nổi bật, có chiều sâu, không lòe loẹt
   const variantClasses = {
     primary:
       'border border-brand-600/25 bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-[0_4px_16px_-2px_rgba(70,95,255,0.45),0_2px_4px_-1px_rgba(15,23,42,0.08)] transition-all duration-200 hover:from-brand-600 hover:to-brand-700 hover:shadow-[0_8px_28px_-4px_rgba(70,95,255,0.5),0_2px_6px_-1px_rgba(15,23,42,0.1)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:scale-100 disabled:opacity-60 disabled:shadow-none dark:border-brand-400/25 dark:shadow-[0_4px_24px_-4px_rgba(70,95,255,0.35)] dark:focus-visible:ring-offset-gray-950',

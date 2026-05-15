@@ -7,11 +7,7 @@ export default function RequireAuth() {
   const hasHydrated = useAuthStore(s => s._hasHydrated)
   const location = useLocation()
 
-  // Đồng bộ đăng xuất giữa các tab trên cùng thiết bị
   useCrossTabLogout()
-
-  // Chờ Zustand persist hydrate xong từ localStorage
-  // để tránh flash dashboard khi chưa xác định được trạng thái auth
   if (!hasHydrated) {
     return null
   }

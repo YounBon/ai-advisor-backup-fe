@@ -1,5 +1,3 @@
-// Trang Lớp & Sinh viên — dành cho ADVISOR
-// Flow: hiển thị lớp ACTIVE → chọn lớp → xem danh sách sinh viên
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import PageMeta from '@/components/common/PageMeta'
@@ -9,8 +7,7 @@ import { classMemberService } from '@/services/ClassMemberService'
 import { masterDataService } from '@/services/MasterDataService'
 import useAuthStore from '@/stores/authStore'
 import { ArrowRightIcon, CloseLineIcon, GroupIcon } from '@/icons'
-
-// ─── Kiểu dữ liệu ────────────────────────────────────────────────────────────
+import AdvisorStudentDetailModal from '@/pages/Advisor/AdvisorStudentDetailModal'
 
 type Pagination = {
   page: number
@@ -47,7 +44,6 @@ type MemberRow = {
 
 const MEMBER_PAGE_SIZE = 10
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function initialsFromName(name: string | null | undefined): string {
   const s = (name ?? '').trim()
@@ -64,30 +60,31 @@ function classLabel(c: AdvisorClassDoc): string {
   return [c.class_code, c.class_name].filter(Boolean).join(' — ')
 }
 
-// ─── Component chính ──────────────────────────────────────────────────────────
 
 export default function AdvisorClassPage() {
   useAuthStore(s => s.user)
 
-  // Học kỳ active (chỉ hiển thị ngữ cảnh)
   const [activeTerm, setActiveTerm] = useState<string | null>(null)
 
-  // Danh sách lớp ACTIVE của cố vấn
   const [classes, setClasses] = useState<AdvisorClassDoc[]>([])
 
-  // Lớp đang được chọn để xem sinh viên
   const [selectedClass, setSelectedClass] = useState<AdvisorClassDoc | null>(null)
 
-  // Danh sách thành viên của lớp đang chọn
   const [members, setMembers] = useState<MemberRow[]>([])
   const [memberPagination, setMemberPagination] = useState<Pagination | null>(null)
   const [memberPage, setMemberPage] = useState(1)
   const [loadingMembers, setLoadingMembers] = useState(false)
 
-  // Searchbar sinh viên (client-side filter)
   const [search, setSearch] = useState('')
 
-  // ── Load học kỳ active + danh sách lớp khi mount ──────────────────────────
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailStudentId, setDetailStudentId] = useState<string | null>(null)
+
+  const openDetail = (userId: string) => {
+    setDetailStudentId(userId)
+    setDetailOpen(true)
+  }
+
   useEffect(() => {
     void (async () => {
       try {
@@ -107,7 +104,6 @@ export default function AdvisorClassPage() {
     })()
   }, [])
 
-  // ── Load thành viên khi chọn lớp hoặc đổi trang ───────────────────────────
   const loadMembers = useCallback(async () => {
     if (!selectedClass) return
     setLoadingMembers(true)
@@ -131,13 +127,11 @@ export default function AdvisorClassPage() {
     if (selectedClass) void loadMembers()
   }, [loadMembers, selectedClass])
 
-  // Reset trang + search khi đổi lớp
   useEffect(() => {
     setMemberPage(1)
     setSearch('')
   }, [selectedClass?._id])
 
-  // ── Lọc sinh viên theo search (client-side) ────────────────────────────────
   const filteredMembers = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return members
@@ -149,7 +143,6 @@ export default function AdvisorClassPage() {
     })
   }, [members, search])
 
-  // Phân trang client-side khi đang search, server-side khi không search
   const [searchPage, setSearchPage] = useState(1)
   useEffect(() => { setSearchPage(1) }, [search])
 
@@ -171,7 +164,6 @@ export default function AdvisorClassPage() {
         description="Danh sách lớp cố vấn và sinh viên trong lớp"
       />
 
-      {/* ── Tiêu đề trang ── */}
       <div
         className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#F0F0F0] bg-white px-6 py-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
         style={{ borderLeft: '4px solid #E02020' }}
@@ -190,7 +182,6 @@ export default function AdvisorClassPage() {
         </div>
       </div>
 
-      {/* ── Danh sách lớp ACTIVE ── */}
       <section className="mb-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-bold text-[#111111]">Lớp đang cố vấn</h2>
@@ -213,8 +204,8 @@ export default function AdvisorClassPage() {
                 <div
                   key={c._id}
                   className={`rounded-2xl border bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] transition-all duration-200 ${isSelected
-                      ? 'border-[#E02020] ring-2 ring-[#E02020]/20'
-                      : 'border-[#F0F0F0] hover:border-[#E02020]/40'
+                    ? 'border-[#E02020] ring-2 ring-[#E02020]/20'
+                    : 'border-[#F0F0F0] hover:border-[#E02020]/40'
                     }`}
                 >
                   <div className="mb-3 flex items-start justify-between gap-2">
@@ -237,8 +228,8 @@ export default function AdvisorClassPage() {
                     type="button"
                     onClick={() => setSelectedClass(c)}
                     className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${isSelected
-                        ? 'bg-[#E02020] text-white'
-                        : 'border border-[#E02020]/30 text-[#E02020] hover:bg-[#FFF0F0]'
+                      ? 'bg-[#E02020] text-white'
+                      : 'border border-[#E02020]/30 text-[#E02020] hover:bg-[#FFF0F0]'
                       }`}
                   >
                     <GroupIcon className="size-4 shrink-0" />
@@ -252,11 +243,9 @@ export default function AdvisorClassPage() {
         )}
       </section>
 
-      {/* ── Danh sách sinh viên (chỉ hiện khi đã chọn lớp) ── */}
       {selectedClass && (
         <section>
           <div className={CARD}>
-            {/* Header */}
             <div
               className="border-b border-[#F0F0F0] px-5 py-4"
               style={{ borderLeft: '3px solid #E02020' }}
@@ -274,7 +263,6 @@ export default function AdvisorClassPage() {
               )}
             </div>
 
-            {/* Searchbar */}
             <div className="border-b border-[#F0F0F0] px-5 py-3">
               <div className="relative max-w-sm">
                 <svg
@@ -311,7 +299,6 @@ export default function AdvisorClassPage() {
               )}
             </div>
 
-            {/* Bảng */}
             {loadingMembers ? (
               <div className="space-y-2 p-5">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -341,12 +328,15 @@ export default function AdvisorClassPage() {
                       <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-[#6B7280]">
                         Trạng thái
                       </TableCell>
+                      <TableCell isHeader className="whitespace-nowrap px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-[#6B7280]">
+                        Thao tác
+                      </TableCell>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {displayedMembers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="px-4 py-12 text-center">
+                        <TableCell colSpan={5} className="px-4 py-12 text-center">
                           <div className="flex flex-col items-center gap-3">
                             <div className="flex size-12 items-center justify-center rounded-2xl bg-[#F9FAFB]">
                               <GroupIcon className="size-6 text-[#9CA3AF]" />
@@ -389,11 +379,21 @@ export default function AdvisorClassPage() {
                           </TableCell>
                           <TableCell className="whitespace-nowrap px-4 py-3.5 align-middle">
                             <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${row.status === 'ACTIVE'
-                                ? 'bg-[#F0FDF4] text-emerald-700'
-                                : 'bg-[#F9FAFB] text-[#6B7280]'
+                              ? 'bg-[#F0FDF4] text-emerald-700'
+                              : 'bg-[#F9FAFB] text-[#6B7280]'
                               }`}>
                               {row.status === 'ACTIVE' ? 'Đang học' : 'Không hoạt động'}
                             </span>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap px-4 py-3.5 text-right align-middle">
+                            <button
+                              type="button"
+                              onClick={() => openDetail(row.student_user_id)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-[#E02020]/30 px-3 py-1.5 text-xs font-semibold text-[#E02020] transition-colors hover:bg-[#FFF0F0]"
+                            >
+                              Xem hồ sơ
+                              <ArrowRightIcon className="size-3.5 shrink-0" />
+                            </button>
                           </TableCell>
                         </TableRow>
                       ))
@@ -403,7 +403,6 @@ export default function AdvisorClassPage() {
               </div>
             )}
 
-            {/* Phân trang */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-[#F0F0F0] px-5 py-3.5">
                 <p className="text-xs text-[#6B7280]">
@@ -443,8 +442,8 @@ export default function AdvisorClassPage() {
                           onClick={() => setCurrentPage(item)}
                           aria-current={currentPage === item ? 'page' : undefined}
                           className={`flex size-8 items-center justify-center rounded-lg border text-xs font-semibold transition-colors ${currentPage === item
-                              ? 'border-[#E02020] bg-[#E02020] text-white'
-                              : 'border-[#F0F0F0] bg-white text-[#444444] hover:border-gray-300 hover:bg-gray-50'
+                            ? 'border-[#E02020] bg-[#E02020] text-white'
+                            : 'border-[#F0F0F0] bg-white text-[#444444] hover:border-gray-300 hover:bg-gray-50'
                             }`}
                         >
                           {item}
@@ -469,6 +468,12 @@ export default function AdvisorClassPage() {
           </div>
         </section>
       )}
+
+      <AdvisorStudentDetailModal
+        isOpen={detailOpen}
+        studentUserId={detailStudentId}
+        onClose={() => { setDetailOpen(false); setDetailStudentId(null) }}
+      />
     </>
   )
 }

@@ -7,8 +7,6 @@ import { dashboardService } from '@/services/DashboardService'
 import { masterDataService } from '@/services/MasterDataService'
 import useAuthStore from '@/stores/authStore'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type DepartmentItem = { _id: string; department_code: string; department_name: string }
 type RiskDistRow = { _id: string | null; count: number }
 type AnomalyRow = { _id: { alert_type?: string; severity?: string }; count: number }
@@ -33,7 +31,6 @@ type FacultyDashboardData = {
     top_risk_students: TopRiskStudent[]
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const DEPT_KEY = 'admin_last_dept'
 
@@ -76,7 +73,6 @@ function sentimentColor(s?: string | null): string {
     return '#6b7280'
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({ label, value, sub, accent }: {
     label: string; value: string | number; sub?: string; accent?: string
@@ -90,7 +86,6 @@ function KpiCard({ label, value, sub, accent }: {
     )
 }
 
-// ─── Bar chart helper (clone từ AdvisorDashboardCharts) ───────────────────────
 
 function makeBarOptions(termLabels: string[], color: string, legendLabel: string): ApexOptions {
     return {
@@ -127,7 +122,6 @@ function makeBarOptions(termLabels: string[], color: string, legendLabel: string
     }
 }
 
-// ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Home() {
     const user = useAuthStore(s => s.user)
@@ -179,7 +173,6 @@ export default function Home() {
         localStorage.setItem(DEPT_KEY, val)
     }
 
-    // ── Biểu đồ 1: Phân bố cảm xúc phản hồi (donut) ──────────────────────────
     const sentimentLabels = useMemo(() => (data?.feedback_sentiment ?? []).map(r => sentimentLabelVi(r._id)), [data])
     const sentimentSeries = useMemo(() => (data?.feedback_sentiment ?? []).map(r => r.count), [data])
     const sentimentColors = useMemo(() => (data?.feedback_sentiment ?? []).map(r => sentimentColor(r._id)), [data])
@@ -208,7 +201,6 @@ export default function Home() {
         tooltip: { y: { formatter: (v: number) => `${v} phản hồi` } },
     }), [sentimentLabels, sentimentColors, sentimentSeries])
 
-    // ── Biểu đồ 2: Rủi ro cao vs tổng (donut) ────────────────────────────────
     const highRisk = data?.kpi.high_risk_students ?? 0
     const totalStudents = data?.kpi.total_students ?? 0
     const safeStudents = Math.max(0, totalStudents - highRisk)
@@ -237,7 +229,6 @@ export default function Home() {
         tooltip: { y: { formatter: (v: number) => `${v} sinh viên` } },
     }), [totalStudents])
 
-    // ── Biểu đồ 3: Sinh viên cảnh báo cao qua các kỳ (bar) ───────────────────
     const alertHistory = data?.alert_history_by_term ?? []
     const termLabels = useMemo(() => alertHistory.map(h => h.term_name ?? h.term_code ?? '—'), [alertHistory])
     const highSeries = useMemo(() => [{ name: 'Sinh viên cảnh báo mức Cao', data: alertHistory.map(h => h.high_severity_count ?? 0) }], [alertHistory])
@@ -249,7 +240,6 @@ export default function Home() {
         },
     }), [termLabels])
 
-    // ── Tên khoa đang xem ─────────────────────────────────────────────────────
     const deptLabel = deptChoice === '__all__'
         ? 'Toàn hệ thống'
         : deptPicklist.find(d => d._id === deptChoice)?.department_name ?? 'Khoa đang chọn'
@@ -273,7 +263,6 @@ export default function Home() {
         <>
             <PageMeta title="Tổng quan | Quản trị hệ thống" description="Tổng quan tình hình học tập và cảnh báo toàn trường" />
 
-            {/* ── Tiêu đề ── */}
             <div
                 className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#F0F0F0] bg-white px-6 py-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
                 style={{ borderLeft: '4px solid #E02020' }}
@@ -300,7 +289,6 @@ export default function Home() {
                 </button>
             </div>
 
-            {/* ── Bộ lọc ── */}
             <div
                 className="mb-6 rounded-2xl border border-[#F0F0F0] bg-white px-6 py-4 shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
                 style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '16px' }}
@@ -337,7 +325,6 @@ export default function Home() {
             ) : kpi ? (
                 <div className="space-y-6">
 
-                    {/* ── 4 KPI Cards ── */}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <KpiCard label="Tổng sinh viên" value={kpi.total_students} sub={deptLabel} />
                         <KpiCard
@@ -355,10 +342,8 @@ export default function Home() {
                         <KpiCard label="Bản ghi dự báo" value={kpi.total_predictions} sub="Dự báo mới nhất mỗi sinh viên" />
                     </div>
 
-                    {/* ── 3 Biểu đồ ── */}
                     <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
 
-                        {/* Biểu đồ 1 — Phân bố cảm xúc phản hồi */}
                         <div className="rounded-2xl border border-[#F0F0F0] bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
                             <h2 className="text-base font-bold text-[#111111]">Cảm xúc phản hồi sau họp</h2>
                             <p className="mt-0.5 text-xs text-[#6B7280]">Phân bố phản hồi trong học kỳ hiện tại — {deptLabel}</p>
@@ -374,7 +359,6 @@ export default function Home() {
                             </div>
                         </div>
 
-                        {/* Biểu đồ 2 — Rủi ro cao vs bình thường */}
                         <div className="rounded-2xl border border-[#F0F0F0] bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
                             <h2 className="text-base font-bold text-[#111111]">Tỉ lệ sinh viên rủi ro cao</h2>
                             <p className="mt-0.5 text-xs text-[#6B7280]">So với tổng số sinh viên — ngưỡng ≥ {riskThreshold}</p>
@@ -389,7 +373,6 @@ export default function Home() {
                             </div>
                         </div>
 
-                        {/* Biểu đồ 3 — Sinh viên cảnh báo cao qua các kỳ */}
                         <div className="rounded-2xl border border-[#F0F0F0] bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
                             <h2 className="text-base font-bold text-[#111111]">Cảnh báo mức Cao qua các học kỳ</h2>
                             <p className="mt-0.5 text-xs text-[#6B7280]">Số sinh viên có ít nhất 1 cảnh báo mức Cao — {deptLabel}</p>
@@ -405,7 +388,6 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* ── Top 10 sinh viên rủi ro cao nhất ── */}
                     <div className="rounded-2xl border border-[#F0F0F0] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
                         <div className="flex items-center gap-2 border-b border-[#F0F0F0] px-5 py-4">
                             <svg className="size-5 text-[#E02020]" viewBox="0 0 24 24" fill="none">

@@ -13,14 +13,6 @@ type OrgRef = {
   major_name?: string
 }
 
-type AdvisorBrief = {
-  _id?: string
-  username?: string
-  email?: string
-  profile?: { full_name?: string }
-  advisor_info?: { staff_code?: string; title?: string }
-}
-
 export type InfoUserRecord = {
   _id: string
   username?: string
@@ -46,24 +38,11 @@ export type InfoUserRecord = {
     student_code?: string
     cohort_year?: number
     enrollment_status?: string
-    advisor_user_id?: string | AdvisorBrief | null
   }
   advisor_info?: {
     staff_code?: string
     title?: string
   }
-  advisor_class_memberships?: {
-    membership_status?: string
-    joined_at?: string
-    class?: {
-      _id?: string
-      class_code?: string
-      class_name?: string
-      status?: string
-      cohort_year?: number
-    } | null
-    advisor?: AdvisorBrief | null
-  }[]
 }
 
 type Props = {
@@ -82,15 +61,65 @@ function orgLabel(ref: string | OrgRef | null | undefined): string {
   return parts.length ? parts.join(' — ') : '—'
 }
 
-function advisorDisplayName(a: AdvisorBrief | null | undefined): string {
-  if (!a) return '—'
-  const n =
-    a.profile?.full_name?.trim() ||
-    a.username?.trim() ||
-    a.email?.trim() ||
-    String(a._id ?? '')
-  const code = a.advisor_info?.staff_code ? ` (${a.advisor_info.staff_code})` : ''
-  return `${n}${code}`.trim() || '—'
+function formatEnrollmentStatus(status?: string | null): string {
+  if (!status) return '—'
+  const map: Record<string, string> = {
+    ENROLLED: 'Đang học',
+    GRADUATED: 'Đã tốt nghiệp',
+    SUSPENDED: 'Tạm dừng học',
+    EXPELLED: 'Buộc thôi học',
+    LEAVE_OF_ABSENCE: 'Nghỉ phép học vụ',
+    TRANSFERRED: 'Chuyển trường',
+    DROPPED_OUT: 'Bỏ học',
+  }
+  return map[status.toUpperCase()] ?? status
+}
+
+function formatTitle(title?: string | null): string {
+  if (!title) return '—'
+  const map: Record<string, string> = {
+    'ThS': 'Thạc sĩ',
+    'TS': 'Tiến sĩ',
+    'PGS.TS': 'Phó Giáo sư - Tiến sĩ',
+    'GS.TS': 'Giáo sư - Tiến sĩ',
+    'GS': 'Giáo sư',
+    'PGS': 'Phó Giáo sư',
+    'KS': 'Kỹ sư',
+    'CN': 'Cử nhân',
+  }
+  return map[title.trim()] ?? title
+}
+
+function formatRole(role?: string | null): string {
+  if (!role) return '—'
+  const map: Record<string, string> = {
+    STUDENT: 'Sinh viên',
+    ADVISOR: 'Cố vấn học tập',
+    ADMIN: 'Quản trị viên',
+    STAFF: 'Nhân viên',
+  }
+  return map[role.toUpperCase()] ?? role
+}
+
+function formatStatus(status?: string | null): string {
+  if (!status) return '—'
+  const map: Record<string, string> = {
+    ACTIVE: 'Đang hoạt động',
+    INACTIVE: 'Không hoạt động',
+    BANNED: 'Bị khóa',
+    PENDING: 'Chờ xác nhận',
+  }
+  return map[status.toUpperCase()] ?? status
+}
+
+function formatGender(gender?: string | null): string {
+  if (!gender) return '—'
+  const map: Record<string, string> = {
+    MALE: 'Nam',
+    FEMALE: 'Nữ',
+    OTHER: 'Khác',
+  }
+  return map[gender.toUpperCase()] ?? gender
 }
 
 export default function AdvisorStudentDetailModal({ isOpen, studentUserId, onClose }: Props) {
@@ -132,14 +161,9 @@ export default function AdvisorStudentDetailModal({ isOpen, studentUserId, onClo
   const si = user?.student_info
   const ai = user?.advisor_info
   const org = user?.org
-  const memberships = user?.advisor_class_memberships ?? []
-  const profileAdvisor =
-    si?.advisor_user_id && typeof si.advisor_user_id === 'object'
-      ? si.advisor_user_id
-      : null
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} className="max-w-2xl p-6">
+    <Modal isOpen={isOpen} onClose={handleClose} className="max-w-2xl p-6" showCloseButton={false}>
       <h3 className="mb-1  text-center text-lg font-semibold text-gray-800 dark:text-white/90">
         Chi tiết người dùng
       </h3>
@@ -154,16 +178,8 @@ export default function AdvisorStudentDetailModal({ isOpen, studentUserId, onClo
             <dl className="grid gap-2 sm:grid-cols-2">
               <Row label="Username" value={user.username} />
               <Row label="Email" value={user.email} />
-              <Row label="Vai trò" value={user.role} />
-              <Row label="Trạng thái" value={user.status} />
-              <Row
-                label="Đăng nhập gần nhất"
-                value={
-                  user.last_login_at
-                    ? moment(user.last_login_at).format('DD/MM/YYYY HH:mm')
-                    : '—'
-                }
-              />
+              <Row label="Vai trò" value={formatRole(user.role)} />
+              <Row label="Trạng thái" value={formatStatus(user.status)} />
             </dl>
           </section>
 
@@ -186,7 +202,7 @@ export default function AdvisorStudentDetailModal({ isOpen, studentUserId, onClo
             <dl className="grid gap-2 sm:grid-cols-2">
               <Row label="Họ tên" value={p?.full_name} />
               <Row label="Điện thoại" value={p?.phone} />
-              <Row label="Giới tính" value={p?.gender} />
+              <Row label="Giới tính" value={formatGender(p?.gender)} />
               <Row label="Ngày sinh" value={p?.date_of_birth ? moment(p.date_of_birth).format('DD/MM/YYYY') : '—'} />
               <Row label="Địa chỉ" value={p?.address} className="sm:col-span-2" />
             </dl>
@@ -198,74 +214,9 @@ export default function AdvisorStudentDetailModal({ isOpen, studentUserId, onClo
               </h4>
               <dl className="grid gap-2 sm:grid-cols-2">
                 <Row label="Mã SV" value={si.student_code} />
-                <Row label="Khóa / cohort" value={si.cohort_year} />
-                <Row label="Trạng thái học" value={si.enrollment_status} />
+                <Row label="Khóa" value={si.cohort_year} />
+                <Row label="Trạng thái học" value={formatEnrollmentStatus(si.enrollment_status)} />
               </dl>
-              {profileAdvisor ? (
-                <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50/80 p-3 dark:border-gray-800 dark:bg-white/5">
-                  <p className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
-                    Cố vấn ghi trên hồ sơ sinh viên (student_info)
-                  </p>
-                  <dl className="grid gap-2 sm:grid-cols-2">
-                    <Row label="Họ tên / tài khoản" value={advisorDisplayName(profileAdvisor)} />
-                    <Row label="Email" value={profileAdvisor.email} />
-                    <Row label="Mã cán bộ" value={profileAdvisor.advisor_info?.staff_code} />
-                    <Row label="Chức danh" value={profileAdvisor.advisor_info?.title} />
-                  </dl>
-                </div>
-              ) : null}
-            </section>
-          ) : null}
-
-          {memberships.length > 0 ? (
-            <section>
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Lớp cố vấn & cố vấn chủ nhiệm
-              </h4>
-              <ul className="space-y-3">
-                {memberships.map((m, idx) => (
-                  <li
-                    key={`${m.class?._id ?? idx}-${m.membership_status ?? ''}`}
-                    className="rounded-lg border border-gray-100 p-3 dark:border-gray-800"
-                  >
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                      Lớp{' '}
-                      <span className="text-gray-800 dark:text-white/90">
-                        {m.class?.class_code ?? '—'}
-                        {m.class?.class_name ? ` — ${m.class.class_name}` : ''}
-                      </span>
-                    </p>
-                    <dl className="mt-2 grid gap-2 sm:grid-cols-2">
-                      <Row label="Trạng thái lớp" value={m.class?.status} />
-                      <Row label="Khóa (lớp)" value={m.class?.cohort_year} />
-                      <Row label="Trạng thái thành viên" value={m.membership_status} />
-                      <Row
-                        label="Tham gia"
-                        value={
-                          m.joined_at
-                            ? moment(m.joined_at).format('DD/MM/YYYY HH:mm')
-                            : '—'
-                        }
-                      />
-                      <Row
-                        label="Cố vấn chủ nhiệm"
-                        value={advisorDisplayName(m.advisor ?? undefined)}
-                        className="sm:col-span-2"
-                      />
-                      <Row label="Email CVHT" value={m.advisor?.email} />
-                    </dl>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : user?.role === 'STUDENT' ? (
-            <section>
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Lớp cố vấn
-              </h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Chưa có bản ghi thành viên lớp cố vấn.
-              </p>
             </section>
           ) : null}
 
@@ -276,7 +227,7 @@ export default function AdvisorStudentDetailModal({ isOpen, studentUserId, onClo
               </h4>
               <dl className="grid gap-2 sm:grid-cols-2">
                 <Row label="Mã cán bộ" value={ai.staff_code} />
-                <Row label="Chức danh" value={ai.title} />
+                <Row label="Chức danh" value={formatTitle(ai.title)} />
               </dl>
             </section>
           ) : null}

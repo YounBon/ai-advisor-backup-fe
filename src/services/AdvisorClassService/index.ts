@@ -9,12 +9,23 @@ class AdvisorClassService {
     return response.data
   }
 
-  /**
-   * Lấy danh sách tất cả lớp cố vấn của cố vấn hiện tại (1–3 lớp).
-   * Response: { data: AdvisorClass[] }
-   */
   getMyAdvisorClasses = async (body: object = {}): Promise<ApiResponse> => {
     const response = await this.api.post('/advisor-classes/my', body)
+    return response.data
+  }
+
+  listAllAdvisorClasses = async (body: object = {}): Promise<ApiResponse> => {
+    const response = await this.api.post('/advisor-classes/list', body)
+    return response.data
+  }
+
+  changeAdvisor = async (body: object): Promise<ApiResponse> => {
+    const response = await this.api.post('/advisor-classes/change-advisor', body)
+    return response.data
+  }
+
+  deleteAdvisorClass = async (classId: string): Promise<ApiResponse> => {
+    const response = await this.api.delete(`/advisor-classes/${classId}`)
     return response.data
   }
 }

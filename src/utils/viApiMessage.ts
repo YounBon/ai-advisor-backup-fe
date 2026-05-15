@@ -21,10 +21,25 @@ const EN_TO_VI: Record<string, string> = {
   'internal server error': 'Đã có lỗi xảy ra',
   'file size must be less than or equal to 5mb':
     'Dung lượng tệp phải nhỏ hơn hoặc bằng 5MB',
+  'validation error': 'Dữ liệu không hợp lệ',
+  'invalid department_id': 'Khoa không hợp lệ',
+  'invalid from_class_id': 'Lớp nguồn không hợp lệ',
+  'invalid to_class_id': 'Lớp đích không hợp lệ',
+  'invalid student_user_id': 'Sinh viên không hợp lệ',
+  'from_class_id is required': 'Thiếu lớp nguồn',
+  'to_class_id is required': 'Thiếu lớp đích',
+  'student_user_ids must be a non-empty array': 'Vui lòng chọn ít nhất 1 sinh viên',
+  'student_user_ids is required': 'Vui lòng chọn ít nhất 1 sinh viên',
+  'from_class_id and to_class_id must be different': 'Lớp nguồn và lớp đích phải khác nhau',
+  'target class is not active': 'Lớp đích không còn hoạt động',
+  'some students do not belong to the source class': 'Có sinh viên không còn thuộc lớp nguồn',
 }
 
 function translateKnown(message: string): string | undefined {
   const key = normKey(message)
+  if (key.startsWith('student ') && key.includes(' major does not match target class major')) {
+    return 'Sinh viên không cùng ngành với lớp đích'
+  }
   return EN_TO_VI[key]
 }
 

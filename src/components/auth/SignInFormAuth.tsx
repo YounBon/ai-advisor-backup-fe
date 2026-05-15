@@ -3,8 +3,6 @@ import { Link } from 'react-router'
 import { ArrowRightIcon, EyeCloseIcon, EyeIcon } from '../../icons'
 import Label from '../form/Label'
 import InputField from '../form/input/InputField'
-import Button from '../ui/button/Button'
-
 type SignInFormProps = {
   onSignIn: (email: string, password: string) => Promise<void>
   isSubmitting: boolean
@@ -23,7 +21,6 @@ export default function SignInForm({ onSignIn, isSubmitting }: SignInFormProps) 
 
   return (
     <div className="flex flex-1 flex-col bg-white px-4 py-10 dark:bg-gray-950 sm:px-8 lg:w-1/2 lg:py-0">
-      {/* Back to home */}
       <div className="mx-auto w-full max-w-md pt-2 sm:pt-6 lg:pt-10">
         <Link
           to="/"
@@ -36,13 +33,13 @@ export default function SignInForm({ onSignIn, isSubmitting }: SignInFormProps) 
         </Link>
       </div>
 
-      {/* Form container */}
+      
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center pb-12">
         <div className="rounded-2xl border border-gray-200/90 bg-white p-6 shadow-theme-md dark:border-gray-800 dark:bg-gray-900/60 dark:shadow-none sm:p-8">
 
-          {/* Header */}
+          
           <div className="mb-8">
-            {/* Logo */}
+            
             <div className="mb-5 flex items-center gap-3">
               <img src="/images/logo/auth-logo.png" alt="AI-Advisor" width={40} height={40} className="object-contain" />
               <span className="text-lg font-bold text-gray-900 dark:text-white">
@@ -58,7 +55,6 @@ export default function SignInForm({ onSignIn, isSubmitting }: SignInFormProps) 
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit}>
             <div className="space-y-5">
               <div>
@@ -135,7 +131,6 @@ export default function SignInForm({ onSignIn, isSubmitting }: SignInFormProps) 
             </div>
           </form>
 
-          {/* Footer note */}
           <p className="mt-6 text-center text-xs text-gray-400 dark:text-gray-600">
             Tài khoản được cấp bởi quản trị viên hệ thống.
           </p>

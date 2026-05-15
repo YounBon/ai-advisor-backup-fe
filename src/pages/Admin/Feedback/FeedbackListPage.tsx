@@ -252,7 +252,7 @@ export default function FeedbackListPage({ presetAdvisorUserId }: FeedbackListPa
         )}
       </div>
 
-      <Modal isOpen={detailOpen} onClose={() => setDetailOpen(false)} className="max-w-2xl overflow-hidden p-0">
+      <Modal isOpen={detailOpen} onClose={() => setDetailOpen(false)} showCloseButton={false} className="max-w-2xl overflow-hidden p-0">
         {detailRow && (
           <>
             <div className="border-b border-[#F0F0F0] px-6 py-4" style={{ borderLeft: '4px solid #E02020' }}>

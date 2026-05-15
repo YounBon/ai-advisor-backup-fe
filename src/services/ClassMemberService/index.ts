@@ -13,6 +13,21 @@ class ClassMemberService {
     const response = await this.api.post('/class-members/list', body)
     return response.data
   }
+
+  removeMembers = async (body: object): Promise<ApiResponse> => {
+    const response = await this.api.post('/class-members/remove', body)
+    return response.data
+  }
+
+  transferMembers = async (body: object): Promise<ApiResponse> => {
+    const response = await this.api.post('/class-members/transfer', body)
+    return response.data
+  }
+
+  listUnassignedStudents = async (body: object = {}): Promise<ApiResponse> => {
+    const response = await this.api.post('/class-members/unassigned', body)
+    return response.data
+  }
 }
 
 export const classMemberService = new ClassMemberService()
