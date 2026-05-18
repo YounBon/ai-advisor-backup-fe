@@ -129,7 +129,37 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
                 }`}
             >
               <div className="flex flex-wrap flex-auto gap-2">
-                {selectedOptions.length > 0 ? (
+                {selectedOptions.length === 0 ? (
+                  <div className="w-full h-full p-1 pr-2 text-sm text-gray-400 dark:text-gray-500 pointer-events-none">
+                    {placeholder}
+                  </div>
+                ) : selectedOptions.length > 5 ? (
+                  /* Collapsed summary khi chọn nhiều hơn 5 */
+                  <div className="flex flex-wrap items-center gap-2 py-0.5">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-sm font-semibold text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+                        <path d="M2 8a6 6 0 1 0 12 0A6 6 0 0 0 2 8Zm6-1.5v3m0-5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                      {selectedOptions.length} / {options.length} sinh viên đã chọn
+                    </span>
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation()
+                        if (!disabled) updateSelection([])
+                      }}
+                      disabled={disabled}
+                      className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-100 disabled:cursor-not-allowed dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+                      aria-label="Bỏ chọn tất cả"
+                    >
+                      <svg className="fill-current" width="10" height="10" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <path fillRule="evenodd" clipRule="evenodd" d="M3.40717 4.46881C3.11428 4.17591 3.11428 3.70104 3.40717 3.40815C3.70006 3.11525 4.17494 3.11525 4.46783 3.40815L6.99943 5.93975L9.53095 3.40822C9.82385 3.11533 10.2987 3.11533 10.5916 3.40822C10.8845 3.70112 10.8845 4.17599 10.5916 4.46888L8.06009 7.00041L10.5916 9.53193C10.8845 9.82482 10.8845 10.2997 10.5916 10.5926C10.2987 10.8855 9.82385 10.8855 9.53095 10.5926L6.99943 8.06107L4.46783 10.5927C4.17494 10.8856 3.70006 10.8856 3.40717 10.5927C3.11428 10.2998 3.11428 9.8249 3.40717 9.53201L5.93877 7.00041L3.40717 4.46881Z" />
+                      </svg>
+                      Bỏ chọn tất cả
+                    </button>
+                  </div>
+                ) : (
+                  /* Hiển thị tags bình thường khi ≤ 5 */
                   selectedOptions.map(value => {
                     const text = options.find(opt => opt.value === value)?.text || value
                     return (
@@ -165,10 +195,6 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
                       </div>
                     )
                   })
-                ) : (
-                  <div className="w-full h-full p-1 pr-2 text-sm text-gray-400 dark:text-gray-500 pointer-events-none">
-                    {placeholder}
-                  </div>
                 )}
               </div>
               <div className="flex items-center self-start py-1 pl-1 pr-1 w-7">

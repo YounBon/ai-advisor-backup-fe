@@ -33,13 +33,13 @@ export default function SignInForm({ onSignIn, isSubmitting }: SignInFormProps) 
         </Link>
       </div>
 
-      
+
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center pb-12">
         <div className="rounded-2xl border border-gray-200/90 bg-white p-6 shadow-theme-md dark:border-gray-800 dark:bg-gray-900/60 dark:shadow-none sm:p-8">
 
-          
+
           <div className="mb-8">
-            
+
             <div className="mb-5 flex items-center gap-3">
               <img src="/images/logo/auth-logo.png" alt="AI-Advisor" width={40} height={40} className="object-contain" />
               <span className="text-lg font-bold text-gray-900 dark:text-white">

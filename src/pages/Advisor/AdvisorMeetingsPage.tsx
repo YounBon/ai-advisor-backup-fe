@@ -746,10 +746,11 @@ export default function AdvisorMeetingsPage() {
       </div>
 
       {/* ── Modal chi tiết cuộc họp ── */}
-      <Modal isOpen={detailOpen} onClose={closeDetail} className="max-w-3xl overflow-hidden p-0">
+      <Modal isOpen={detailOpen} onClose={closeDetail} className="flex max-h-[90vh] max-w-3xl flex-col overflow-hidden p-0">
         {detailMeeting ? (
           <>
-            <div className="border-b border-[#F0F0F0] px-6 py-4" style={{ borderLeft: '4px solid #E02020' }}>
+            {/* Header — cố định */}
+            <div className="shrink-0 border-b border-[#F0F0F0] px-6 py-4" style={{ borderLeft: '4px solid #E02020' }}>
               <div className="flex items-center gap-3">
                 <span className="flex size-10 items-center justify-center rounded-xl bg-[#FFF0F0] text-[#E02020]">
                   <EyeIcon className="size-5" aria-hidden />
@@ -763,7 +764,8 @@ export default function AdvisorMeetingsPage() {
               </div>
             </div>
 
-            <div className="p-6 pt-4">
+            {/* Body — scroll được */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-6 pt-4">
               {/* Thông tin cơ bản */}
               <dl className="grid gap-3 rounded-2xl border border-[#F0F0F0] bg-[#F9FAFB] p-4 text-sm sm:grid-cols-2">
                 <div>
@@ -833,7 +835,7 @@ export default function AdvisorMeetingsPage() {
               </div>
 
               {/* Nội dung tab */}
-              <div className="mt-3 max-h-[45vh] overflow-auto rounded-2xl border border-[#F0F0F0]">
+              <div className="mt-3 max-h-[40vh] overflow-auto rounded-2xl border border-[#F0F0F0]">
                 {detailTab === 'students' ? (
                   <Table className="text-left text-sm" framed={false}>
                     <TableHeader>
@@ -1034,10 +1036,10 @@ export default function AdvisorMeetingsPage() {
               disabled={actionLoading}
               onClick={() => void executeAction()}
               className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${confirmAction === 'delete'
-                  ? 'bg-[#E02020] hover:bg-[#C01818]'
-                  : confirmAction === 'unarchive'
-                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                    : 'bg-amber-500 hover:bg-amber-600'
+                ? 'bg-[#E02020] hover:bg-[#C01818]'
+                : confirmAction === 'unarchive'
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-amber-500 hover:bg-amber-600'
                 }`}
             >
               {actionLoading

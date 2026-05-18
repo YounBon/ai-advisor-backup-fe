@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { viApiMessage } from '@/utils/viApiMessage'
 import PageMeta from '@/components/common/PageMeta'
@@ -175,6 +175,8 @@ export default function AdminAdvisorClassPage() {
     const [memberPage, setMemberPage] = useState(1)
     const [loadingMembers, setLoadingMembers] = useState(false)
     const [memberSearch, setMemberSearch] = useState('')
+    const [memberSearchQuery, setMemberSearchQuery] = useState('')
+    const memberSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     // ── Create class modal ──
     const [createOpen, setCreateOpen] = useState(false)
@@ -299,7 +301,9 @@ export default function AdminAdvisorClassPage() {
         if (!selectedClass) return
         setLoadingMembers(true)
         try {
-            const res = await classMemberService.listMembers({ class_id: selectedClass._id, page: memberPage, limit: MEMBER_PAGE_SIZE })
+            const body: Record<string, unknown> = { class_id: selectedClass._id, page: memberPage, limit: MEMBER_PAGE_SIZE }
+            if (memberSearchQuery) body.search = memberSearchQuery
+            const res = await classMemberService.listMembers(body)
             const data = res.data as { items: MemberRow[]; pagination: Pagination }
             setMembers(data.items ?? [])
             setMemberPagination(data.pagination ?? null)
@@ -308,22 +312,22 @@ export default function AdminAdvisorClassPage() {
         } finally {
             setLoadingMembers(false)
         }
-    }, [selectedClass, memberPage])
+    }, [selectedClass, memberPage, memberSearchQuery])
 
     useEffect(() => { if (selectedClass) void loadMembers() }, [loadMembers, selectedClass])
 
-    useEffect(() => { setMemberPage(1); setMemberSearch('') }, [selectedClass?._id])
+    useEffect(() => { setMemberPage(1); setMemberSearch(''); setMemberSearchQuery('') }, [selectedClass?._id])
 
-    const filteredMembers = useMemo(() => {
-        const q = memberSearch.trim().toLowerCase()
-        if (!q) return members
-        return members.filter(m => {
-            const name = (m.student?.profile?.full_name ?? m.student?.username ?? '').toLowerCase()
-            const code = (m.student?.student_info?.student_code ?? '').toLowerCase()
-            const email = (m.student?.email ?? '').toLowerCase()
-            return name.includes(q) || code.includes(q) || email.includes(q)
-        })
-    }, [members, memberSearch])
+    const filteredMembers = members
+
+    const handleMemberSearchChange = (value: string) => {
+        setMemberSearch(value)
+        if (memberSearchDebounceRef.current) clearTimeout(memberSearchDebounceRef.current)
+        memberSearchDebounceRef.current = setTimeout(() => {
+            setMemberSearchQuery(value.trim())
+            setMemberPage(1)
+        }, 400)
+    }
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Create class
@@ -567,12 +571,11 @@ export default function AdminAdvisorClassPage() {
             const body: Record<string, unknown> = { department_id: deptId, major_id: majorId, status: 'ACTIVE', limit: 100 }
             const res = await advisorClassService.listAllAdvisorClasses(body)
             const data = res.data as { items: AdvisorClassDoc[] }
-            const canMoveToClass = (cls: AdvisorClassDoc) => {
-                if (cls._id === selectedClass._id) return false
-                const targetMajorId = getRefId(cls.major_id as { _id: string } | string | undefined)
-                return targetMajorId === majorId
-            }
-            setTargetClassPicklist((data.items ?? []).filter(canMoveToClass))
+            // Loại lớp nguồn ra, giữ tất cả lớp còn lại trong cùng ngành
+            // (API đã lọc theo department_id + major_id, không cần filter lại)
+            setTargetClassPicklist(
+                (data.items ?? []).filter(cls => String(cls._id) !== String(selectedClass._id))
+            )
             setTransferOpen(true)
             setTransferOpenKey(k => k + 1)
         } catch {
@@ -853,11 +856,11 @@ export default function AdminAdvisorClassPage() {
                             <svg className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#9CA3AF]" viewBox="0 0 20 20" fill="none">
                                 <path d="M17.5 17.5l-3.333-3.333M15.833 9.167a6.667 6.667 0 1 1-13.333 0 6.667 6.667 0 0 1 13.333 0Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
-                            <input type="text" value={memberSearch} onChange={e => setMemberSearch(e.target.value)}
+                            <input type="text" value={memberSearch} onChange={e => handleMemberSearchChange(e.target.value)}
                                 placeholder="Tìm theo tên hoặc mã sinh viên..."
                                 className="h-9 w-full rounded-xl border border-[#E0E0E0] bg-white pl-9 pr-9 text-sm text-[#111111] placeholder-[#9CA3AF] outline-none transition-colors focus:border-[#E02020] focus:ring-2 focus:ring-[#E02020]/15" />
                             {memberSearch && (
-                                <button type="button" onClick={() => setMemberSearch('')}
+                                <button type="button" onClick={() => handleMemberSearchChange('')}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280]" aria-label="Xóa tìm kiếm">
                                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                                 </button>

@@ -577,7 +577,7 @@ const steps = [
         title: "AI phân tích tự động",
         description:
             "3 mô hình AI chạy song song: Random Forest dự đoán rủi ro, PhoBERT phân tích cảm xúc, Isolation Forest phát hiện bất thường hành vi.",
-        detail: "AI-01 · AI-02 · AI-04 · Realtime",
+        detail: "AI-01 · AI-02 · AI-03 · Realtime",
     },
     {
         number: "03",

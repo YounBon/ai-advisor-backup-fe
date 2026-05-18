@@ -251,10 +251,17 @@ export default function AcademicPage() {
         masterDataService.getTermsList({ page: 1, limit: 100 }),
         masterDataService.getActiveTerm(),
       ])
-      const listData = listRes.data as { items?: TermItem[] }
-      setTerms(listData.items ?? [])
-      const active = activeRes.data as { _id?: string } | null
+      const listData = listRes.data as { items?: (TermItem & { start_date?: string; status?: string })[] }
+      const active = activeRes.data as { _id?: string; start_date?: string } | null
       if (active?._id) setDefaultTermId(String(active._id))
+
+      // Chỉ hiển thị kỳ hiện tại và các kỳ trước — lọc bỏ kỳ tương lai
+      const activeStart = active?.start_date ? new Date(active.start_date).getTime() : null
+      const allTerms = listData.items ?? []
+      const filtered = activeStart
+        ? allTerms.filter(t => !t.start_date || new Date(t.start_date).getTime() <= activeStart)
+        : allTerms
+      setTerms(filtered)
     } catch {
       toast.error('Đã có lỗi xảy ra')
     }

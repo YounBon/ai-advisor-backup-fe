@@ -152,18 +152,92 @@ export default function AdvisorDashboardCharts({
   const anomSeries = useMemo(() => [{ name: 'Cảnh báo bất thường', data: alertHistory.map(h => h.anomaly_count ?? 0) }], [alertHistory])
   const anomOptions = useMemo(() => makeBarOptions(termLabels, C_ORANGE, 'Cảnh báo bất thường'), [termLabels])
 
-  // Biểu đồ 4 — Sinh viên mức cảnh báo Cao
+  // Biểu đồ 4 — Sinh viên mức cảnh báo Cao (line chart)
   const highSeries = useMemo(() => [{ name: 'Sinh viên mức cảnh báo Cao', data: alertHistory.map(h => h.high_severity_count ?? 0) }], [alertHistory])
   const highOptions = useMemo<ApexOptions>(() => ({
-    ...makeBarOptions(termLabels, C_HIGH, 'Sinh viên mức cảnh báo Cao'),
-    fill: {
-      type: 'gradient',
-      gradient: {
-        shade: 'light', type: 'vertical',
-        shadeIntensity: 0.25,
-        gradientToColors: ['#fca5a5'],
-        stops: [0, 100],
+    chart: {
+      type: 'line',
+      fontFamily: "'Be Vietnam Pro', sans-serif",
+      toolbar: { show: false },
+      background: 'transparent',
+      animations: { enabled: true, speed: 400 },
+      dropShadow: {
+        enabled: true,
+        color: '#dc2626',
+        top: 4,
+        blur: 8,
+        opacity: 0.18,
       },
+    },
+    colors: [C_HIGH],
+    stroke: {
+      curve: 'smooth',
+      width: 3,
+      colors: [C_HIGH],
+    },
+    markers: {
+      size: 6,
+      colors: ['#fff'],
+      strokeColors: C_HIGH,
+      strokeWidth: 3,
+      hover: { size: 8 },
+    },
+    fill: {
+      opacity: 1,
+    },
+    dataLabels: {
+      enabled: true,
+      style: { fontSize: '11px', fontWeight: 600, colors: ['#dc2626'] },
+      background: {
+        enabled: true,
+        foreColor: '#dc2626',
+        borderRadius: 4,
+        padding: 3,
+        opacity: 0,
+        borderWidth: 0,
+      },
+      formatter: (val: number) => (val > 0 ? String(val) : ''),
+      offsetY: -8,
+    },
+    xaxis: {
+      categories: termLabels.length ? termLabels : ['—'],
+      labels: {
+        style: { fontSize: '11px', colors: '#6b7280' },
+        rotate: -15,
+        trim: true,
+        maxHeight: 56,
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      title: {
+        text: 'Số sinh viên',
+        style: { fontSize: '11px', color: '#9ca3af', fontWeight: 400 },
+      },
+      labels: {
+        style: { fontSize: '11px', colors: '#9ca3af' },
+        formatter: (v: number) => String(Math.round(v)),
+      },
+      min: 0,
+    },
+    grid: {
+      borderColor: '#F0F0F0',
+      strokeDashArray: 4,
+      yaxis: { lines: { show: true } },
+      xaxis: { lines: { show: false } },
+    },
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'left',
+      fontSize: '12px',
+      fontWeight: 500,
+      labels: { colors: '#374151' },
+      markers: { size: 8 },
+    },
+    tooltip: {
+      y: { formatter: (v: number) => `${v} sinh viên` },
     },
   }), [termLabels])
 
@@ -246,12 +320,12 @@ export default function AdvisorDashboardCharts({
         </div>
       </div>
 
-      {/* ── Biểu đồ 4: Sinh viên mức Cao (full width) ── */}
+      {/* ── Biểu đồ 4: Sinh viên mức Cao (full width, line chart) ── */}
       <div className={CARD}>
         <ChartTitle color="#dc2626" title="Sinh viên có mức cảnh báo Cao qua các kỳ"
-          sub="Số sinh viên có ít nhất 1 cảnh báo mức Cao (mọi loại cảnh báo) trong kỳ" />
+          sub="Xu hướng số sinh viên có ít nhất 1 cảnh báo mức Cao (mọi loại cảnh báo) qua từng kỳ học" />
         {hasHistory
-          ? <Chart options={highOptions} series={highSeries} type="bar" height={240} />
+          ? <Chart options={highOptions} series={highSeries} type="line" height={260} />
           : <EmptyChart />}
       </div>
 
